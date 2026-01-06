@@ -68,7 +68,7 @@ export function CalendarToolbar({
   };
 
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <div className="mb-4 flex items-center justify-between gap-2">
       {/* Left: View switcher */}
       <div className="flex gap-1">
         {viewOptions.map((v) => (
@@ -77,78 +77,100 @@ export function CalendarToolbar({
             variant={view === v ? "default" : "outline"}
             size="sm"
             onClick={() => onView(v as View)}
+            className="max-sm:h-8 max-sm:w-8 max-sm:p-0"
           >
-            {v.charAt(0).toUpperCase() + v.slice(1)}
+            <span className="hidden sm:inline">
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </span>
+            <span className="sm:hidden">{v.charAt(0).toUpperCase()}</span>
           </Button>
         ))}
       </div>
 
       {/* Center: Current date label */}
-      <span className="text-lg font-semibold">{label}</span>
+      <span className="text-lg font-semibold max-sm:text-sm">{label}</span>
 
       {/* Right: Actions + Navigation */}
       <div className="flex items-center gap-2">
-        {showCopyButton && onCopyDayToWeek && (
-          <Popover open={copyOpen} onOpenChange={setCopyOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Copy className="mr-1 h-4 w-4" />
-                Copy
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64" align="end">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium leading-none">Copy Day to Week</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Copy a day's events to all other days.
-                  </p>
-                </div>
-                <div className="grid gap-3">
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="day-select">Select day</Label>
-                    <Select value={selectedDay} onValueChange={setSelectedDay}>
-                      <SelectTrigger id="day-select">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DAYS_OF_WEEK.map((day, index) => (
-                          <SelectItem key={day} value={String(index)}>
-                            {day}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="include-weekends"
-                      checked={includeWeekends}
-                      onCheckedChange={(checked) =>
-                        setIncludeWeekends(checked === true)
-                      }
-                    />
-                    <Label
-                      htmlFor="include-weekends"
-                      className="text-sm font-normal"
-                    >
-                      Include weekends
-                    </Label>
-                  </div>
-                  <Button onClick={handleCopy} className="w-full">
-                    Copy to Week
+        {showCopyButton && (
+          <div className="flex items-center gap-1">
+            {onCopyDayToWeek && (
+              <Popover open={copyOpen} onOpenChange={setCopyOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="max-sm:h-8 max-sm:w-8 max-sm:p-0"
+                  >
+                    <Copy className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Copy</span>
                   </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
+                </PopoverTrigger>
+                <PopoverContent className="w-64" align="end">
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">
+                        Copy Day to Week
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Copy a day's events to all other days.
+                      </p>
+                    </div>
+                    <div className="grid gap-3">
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="day-select">Select day</Label>
+                        <Select
+                          value={selectedDay}
+                          onValueChange={setSelectedDay}
+                        >
+                          <SelectTrigger id="day-select">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DAYS_OF_WEEK.map((day, index) => (
+                              <SelectItem key={day} value={String(index)}>
+                                {day}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="include-weekends"
+                          checked={includeWeekends}
+                          onCheckedChange={(checked) =>
+                            setIncludeWeekends(checked === true)
+                          }
+                        />
+                        <Label
+                          htmlFor="include-weekends"
+                          className="text-sm font-normal"
+                        >
+                          Include weekends
+                        </Label>
+                      </div>
+                      <Button onClick={handleCopy} className="w-full">
+                        Copy to Week
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
 
-        {showCopyButton && onClearWeek && (
-          <Button variant="destructive" size="sm" onClick={handleClearWeek}>
-            <Trash2 className="mr-1 h-4 w-4" />
-            Clear Week
-          </Button>
+            {onClearWeek && (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="max-sm:h-8 max-sm:w-8 max-sm:p-0"
+                onClick={handleClearWeek}
+              >
+                <Trash2 className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Clear Week</span>
+              </Button>
+            )}
+          </div>
         )}
 
         <div className="flex items-center gap-1">

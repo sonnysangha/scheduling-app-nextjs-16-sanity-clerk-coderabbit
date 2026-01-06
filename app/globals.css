@@ -134,3 +134,52 @@
   color: var(--primary-foreground);
   border-radius: 4px;
 }
+
+/* Mobile responsive calendar styles */
+@media (max-width: 640px) {
+  /* Smaller time gutter on mobile */
+  .rbc-time-gutter {
+    min-width: 45px;
+  }
+
+  .rbc-time-gutter .rbc-label {
+    font-size: 0.65rem;
+    padding: 0 4px;
+  }
+
+  /* Smaller day headers */
+  .rbc-header {
+    font-size: 0.7rem;
+    padding: 4px 2px;
+  }
+
+  /* Compact events on mobile */
+  .rbc-event {
+    font-size: 0.65rem;
+    padding: 1px 3px;
+  }
+
+  .rbc-event-label {
+    font-size: 0.6rem;
+  }
+
+  /* Month view adjustments */
+  .rbc-month-view .rbc-date-cell {
+    font-size: 0.75rem;
+    padding: 2px;
+  }
+
+  .rbc-month-row {
+    min-height: 60px;
+  }
+
+  /* Touch-friendly resize handles */
+  .rbc-addons-dnd .rbc-addons-dnd-resize-ns-anchor {
+    height: 12px;
+  }
+
+  /* Smaller show more button */
+  .rbc-show-more {
+    font-size: 0.65rem;
+  }
+}

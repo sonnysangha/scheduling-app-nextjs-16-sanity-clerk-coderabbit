@@ -92,7 +92,7 @@ export function AvailabilityCalendar({
   );
 
   return (
-    <div className="h-[calc(100vh-200px)] min-h-[600px]">
+    <div className="h-[calc(100vh-180px)] min-h-[400px] sm:min-h-[600px]">
       <DnDCalendar
         localizer={localizer}
         style={{ height: "100%" }}
