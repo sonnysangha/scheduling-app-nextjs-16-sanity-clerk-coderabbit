@@ -1,4 +1,4 @@
-import { AvailabilityCalendar } from "@/components/calendar/availability-calendar";
+import { AvailabilityCalendar } from "@/components/calendar";
 
 export default function AvailabilityPage() {
   return (

@@ -6,29 +6,29 @@ import withDragAndDrop, {
   type EventInteractionArgs,
 } from "react-big-calendar/lib/addons/dragAndDrop";
 
-import { localizer } from "./lib/localizer";
-import { CALENDAR_CONFIG, MAX_TIME, MIN_TIME } from "./lib/constants";
+import { localizer } from "../lib/localizer";
+import { CALENDAR_CONFIG, MAX_TIME, MIN_TIME } from "../lib/constants";
 import {
   calendarFormats,
   calendarMessages,
   formatTimeRange,
-} from "./lib/formats";
-import { useCalendarEvents } from "./hooks/use-calendar-events";
+} from "../lib/formats";
+import { useCalendarEvents } from "../hooks/use-calendar-events";
 import { CalendarToolbar } from "./calendar-toolbar";
-import type { CalendarEvent, EventInteraction, SlotInfo } from "./types";
+import type { TimeBlock, TimeBlockInteraction, SlotInfo } from "../types";
 
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 
-const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
+const DnDCalendar = withDragAndDrop<TimeBlock>(Calendar);
 
 interface AvailabilityCalendarProps {
-  initialEvents?: CalendarEvent[];
-  onEventsChange?: (events: CalendarEvent[]) => void;
+  initialBlocks?: TimeBlock[];
+  onBlocksChange?: (blocks: TimeBlock[]) => void;
 }
 
 export function AvailabilityCalendar({
-  initialEvents = [],
+  initialBlocks = [],
 }: AvailabilityCalendarProps) {
   const [view, setView] = useState<View>(Views.WEEK);
   const [date, setDate] = useState(new Date());
@@ -38,42 +38,38 @@ export function AvailabilityCalendar({
     handleSelectSlot,
     handleEventDrop,
     handleEventResize,
-    removeEvent,
+    removeBlock,
     copyDayToWeek,
     clearWeek,
-  } = useCalendarEvents(initialEvents);
+  } = useCalendarEvents(initialBlocks);
 
   const isMonthView = view === Views.MONTH;
 
-  // Drill down to week view for a specific date
   const drillDown = (targetDate: Date) => {
     setDate(targetDate);
     setView(Views.WEEK);
   };
 
-  // Adapt library event args to our EventInteraction type
   const adaptEventArgs = (
-    args: EventInteractionArgs<CalendarEvent>,
-  ): EventInteraction => ({
+    args: EventInteractionArgs<TimeBlock>,
+  ): TimeBlockInteraction => ({
     event: args.event,
     start: args.start as Date,
     end: args.end as Date,
   });
 
-  // Handlers that behave differently in month view
   const onSlotSelect = (slotInfo: SlotInfo) => {
     isMonthView ? drillDown(slotInfo.start) : handleSelectSlot(slotInfo);
   };
 
-  const onEventSelect = (event: CalendarEvent) => {
-    isMonthView ? drillDown(event.start) : removeEvent(event.id);
+  const onBlockSelect = (block: TimeBlock) => {
+    isMonthView ? drillDown(block.start) : removeBlock(block.id);
   };
 
-  // Event title: show time range in month view, title otherwise
-  const getEventTitle = (event: CalendarEvent) =>
-    isMonthView ? formatTimeRange(event.start, event.end) : event.title;
+  // Month view: show time range, Week/Day view: show "Available"
+  const getBlockTitle = (block: TimeBlock) =>
+    isMonthView ? formatTimeRange(block.start, block.end) : "Available";
 
-  // Custom toolbar with copy-to-week and clear-week functionality
   const ToolbarWithActions = useMemo(
     () =>
       function Toolbar(props: React.ComponentProps<typeof CalendarToolbar>) {
@@ -107,13 +103,13 @@ export function AvailabilityCalendar({
         onDrillDown={drillDown}
         startAccessor="start"
         endAccessor="end"
-        titleAccessor={getEventTitle}
+        titleAccessor={getBlockTitle}
         selectable
         resizable={!isMonthView}
         draggableAccessor={() => !isMonthView}
         popup
         onSelectSlot={onSlotSelect}
-        onSelectEvent={onEventSelect}
+        onSelectEvent={onBlockSelect}
         onEventDrop={(args) =>
           !isMonthView && handleEventDrop(adaptEventArgs(args))
         }

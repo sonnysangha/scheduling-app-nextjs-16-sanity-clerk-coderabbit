@@ -1,63 +1,79 @@
 "use client";
 
 import { useState } from "react";
-import {
-  startOfDay,
-  endOfDay,
-  startOfWeek,
-  addDays,
-  setHours,
-  setMinutes,
-  setSeconds,
-  getHours,
-  getMinutes,
-  getSeconds,
-  isSameDay,
-} from "date-fns";
-import type { CalendarEvent, EventInteraction, SlotInfo } from "../types";
-import { CALENDAR_CONFIG } from "../lib/constants";
+import { startOfDay, endOfDay, startOfWeek, addDays, set } from "date-fns";
+import type { TimeBlock, TimeBlockInteraction, SlotInfo } from "../types";
 
-export function useCalendarEvents(initialEvents: CalendarEvent[] = []) {
-  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
+// Helper: check if two blocks overlap or touch
+const blocksOverlapOrTouch = (a: TimeBlock, b: TimeBlock): boolean =>
+  a.start <= b.end && b.start <= a.end;
 
-  const addEvent = (start: Date, end: Date) => {
-    const newEvent: CalendarEvent = {
+// Merge all overlapping/adjacent blocks on the same day
+const mergeOverlappingBlocks = (blocks: TimeBlock[]): TimeBlock[] => {
+  if (blocks.length < 2) return blocks;
+
+  const sorted = [...blocks].sort(
+    (a, b) => a.start.getTime() - b.start.getTime()
+  );
+  const merged: TimeBlock[] = [{ ...sorted[0] }];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    const last = merged[merged.length - 1];
+
+    if (blocksOverlapOrTouch(last, current)) {
+      // Extend the last block to cover both
+      last.end = new Date(Math.max(last.end.getTime(), current.end.getTime()));
+    } else {
+      merged.push({ ...current });
+    }
+  }
+
+  return merged;
+};
+
+export function useCalendarEvents(initialBlocks: TimeBlock[] = []) {
+  const [events, setEvents] = useState<TimeBlock[]>(initialBlocks);
+
+  const addBlock = (start: Date, end: Date): TimeBlock => {
+    const block: TimeBlock = {
       id: crypto.randomUUID(),
-      title: CALENDAR_CONFIG.defaultTitle,
       start,
       end,
     };
-    setEvents((prev) => [...prev, newEvent]);
-    return newEvent;
+    setEvents((prev) => mergeOverlappingBlocks([...prev, block]));
+    return block;
   };
 
-  const updateEvent = (id: string, start: Date, end: Date) => {
+  const updateBlock = (id: string, start: Date, end: Date) => {
     setEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, start, end } : e))
+      mergeOverlappingBlocks(
+        prev.map((b) => (b.id === id ? { ...b, start, end } : b))
+      )
     );
   };
 
-  const removeEvent = (id: string) => {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
+  const removeBlock = (id: string) => {
+    setEvents((prev) => prev.filter((b) => b.id !== id));
   };
 
-  const handleSelectSlot = ({ start, end }: SlotInfo) => addEvent(start, end);
+  const handleSelectSlot = ({ start, end }: SlotInfo) => addBlock(start, end);
 
-  const handleEventDrop = ({ event, start, end }: EventInteraction) =>
-    updateEvent(event.id, start, end);
+  const handleEventDrop = ({ event, start, end }: TimeBlockInteraction) =>
+    updateBlock(event.id, start, end);
 
-  const handleEventResize = ({ event, start, end }: EventInteraction) =>
-    updateEvent(event.id, start, end);
+  const handleEventResize = ({ event, start, end }: TimeBlockInteraction) =>
+    updateBlock(event.id, start, end);
 
-  // Copy time from source event to target date
-  const copyTimeToDate = (sourceDate: Date, targetDate: Date): Date => {
-    let result = setHours(targetDate, getHours(sourceDate));
-    result = setMinutes(result, getMinutes(sourceDate));
-    result = setSeconds(result, getSeconds(sourceDate));
-    return result;
-  };
+  // Copy time from source date to target date
+  const copyTimeToDate = (source: Date, target: Date): Date =>
+    set(target, {
+      hours: source.getHours(),
+      minutes: source.getMinutes(),
+      seconds: source.getSeconds(),
+    });
 
-  // Copy all events from a specific day (by index 0-6) to other days of the week
+  // Copy all blocks from a specific day (by index 0-6) to other days of the week
   const copyDayToWeek = (
     dayIndex: number,
     referenceDate: Date,
@@ -68,51 +84,47 @@ export function useCalendarEvents(initialEvents: CalendarEvent[] = []) {
     const dayStart = startOfDay(sourceDay);
     const dayEnd = endOfDay(sourceDay);
 
-    // Get events for the source day
-    const dayEvents = events.filter(
-      (e) => e.start >= dayStart && e.start <= dayEnd
+    const dayBlocks = events.filter(
+      (b) => b.start >= dayStart && b.start <= dayEnd
     );
 
-    if (dayEvents.length === 0) return;
+    if (dayBlocks.length === 0) return;
 
-    // Create copies for each day of the week (except source day)
-    const newEvents: CalendarEvent[] = [];
+    const newBlocks: TimeBlock[] = [];
 
     for (let i = 0; i < 7; i++) {
-      if (i === dayIndex) continue; // Skip the source day
-      if (!includeWeekends && (i === 5 || i === 6)) continue; // Skip Sat/Sun
+      if (i === dayIndex) continue;
+      if (!includeWeekends && (i === 5 || i === 6)) continue;
 
       const targetDay = addDays(weekStart, i);
 
-      // Copy each event to this day
-      for (const event of dayEvents) {
-        newEvents.push({
+      for (const block of dayBlocks) {
+        newBlocks.push({
           id: crypto.randomUUID(),
-          title: event.title,
-          start: copyTimeToDate(event.start, targetDay),
-          end: copyTimeToDate(event.end, targetDay),
+          start: copyTimeToDate(block.start, targetDay),
+          end: copyTimeToDate(block.end, targetDay),
         });
       }
     }
 
-    setEvents((prev) => [...prev, ...newEvents]);
+    setEvents((prev) => mergeOverlappingBlocks([...prev, ...newBlocks]));
   };
 
-  // Clear all events in the week containing referenceDate
+  // Clear all blocks in the week containing referenceDate
   const clearWeek = (referenceDate: Date) => {
     const weekStart = startOfWeek(referenceDate, { weekStartsOn: 1 });
     const weekEnd = addDays(weekStart, 7);
 
     setEvents((prev) =>
-      prev.filter((e) => e.start < weekStart || e.start >= weekEnd)
+      prev.filter((b) => b.start < weekStart || b.start >= weekEnd)
     );
   };
 
   return {
     events,
-    addEvent,
-    updateEvent,
-    removeEvent,
+    addBlock,
+    updateBlock,
+    removeBlock,
     handleSelectSlot,
     handleEventDrop,
     handleEventResize,

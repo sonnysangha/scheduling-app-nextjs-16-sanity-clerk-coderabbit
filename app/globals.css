@@ -150,9 +150,12 @@
 
 /* Mobile responsive calendar styles */
 @media (max-width: 640px) {
-  /* Smaller time gutter on mobile */
-  .rbc-time-gutter {
-    min-width: 45px;
+  /* Consistent time gutter width on mobile */
+  .rbc-time-gutter,
+  .rbc-time-header-gutter {
+    min-width: 50px !important;
+    max-width: 50px !important;
+    flex: 0 0 50px !important;
   }
 
   .rbc-time-gutter .rbc-label {
@@ -161,9 +164,9 @@
   }
 
   /* Smaller day headers */
-  .rbc-header {
-    font-size: 0.7rem;
-    padding: 4px 2px;
+  .rbc-time-view .rbc-header {
+    font-size: 0.7rem !important;
+    padding: 8px 2px !important;
   }
 
   /* Compact events on mobile */

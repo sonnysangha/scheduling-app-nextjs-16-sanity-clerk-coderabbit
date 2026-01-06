@@ -1,18 +1,19 @@
-export interface CalendarEvent {
+// A time block representing availability
+export interface TimeBlock {
   id: string;
-  title: string;
   start: Date;
   end: Date;
 }
 
+// Slot selection from calendar
 export interface SlotInfo {
   start: Date;
   end: Date;
-  action: "select" | "click" | "doubleClick";
 }
 
-export interface EventInteraction {
-  event: CalendarEvent;
+// Drag/resize interaction
+export interface TimeBlockInteraction {
+  event: TimeBlock;
   start: Date;
   end: Date;
 }
