@@ -109,12 +109,17 @@ export function AvailabilityCalendar({
         endAccessor="end"
         titleAccessor={getEventTitle}
         selectable
-        resizable
+        resizable={!isMonthView}
+        draggableAccessor={() => !isMonthView}
         popup
         onSelectSlot={onSlotSelect}
         onSelectEvent={onEventSelect}
-        onEventDrop={(args) => handleEventDrop(adaptEventArgs(args))}
-        onEventResize={(args) => handleEventResize(adaptEventArgs(args))}
+        onEventDrop={(args) =>
+          !isMonthView && handleEventDrop(adaptEventArgs(args))
+        }
+        onEventResize={(args) =>
+          !isMonthView && handleEventResize(adaptEventArgs(args))
+        }
         min={MIN_TIME}
         max={MAX_TIME}
         step={CALENDAR_CONFIG.step}

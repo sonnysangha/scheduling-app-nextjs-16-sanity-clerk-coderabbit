@@ -135,6 +135,19 @@
   border-radius: 4px;
 }
 
+/* Hide all-day section - not needed for availability */
+.rbc-allday-cell {
+  display: none;
+}
+/* Day headers in week/day views */
+.rbc-time-view .rbc-row.rbc-time-header-cell .rbc-header,
+.rbc-time-view .rbc-header {
+  border-bottom: 1px solid var(--border) !important;
+  padding: 16px 8px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+}
+
 /* Mobile responsive calendar styles */
 @media (max-width: 640px) {
   /* Smaller time gutter on mobile */
