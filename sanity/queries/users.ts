@@ -11,6 +11,7 @@ import { defineQuery } from "next-sanity";
 import type {
   USER_WITH_TOKENS_QUERYResult,
   HOST_BY_SLUG_WITH_TOKENS_QUERYResult,
+  USER_CONNECTED_ACCOUNTS_DISPLAY_QUERYResult,
 } from "@/sanity/types";
 
 // Derived type from USER_WITH_TOKENS_QUERY result
@@ -20,6 +21,11 @@ export type ConnectedAccountWithTokens = NonNullable<
 
 // Derived type for host with tokens (for booking actions)
 export type HostWithTokens = NonNullable<HOST_BY_SLUG_WITH_TOKENS_QUERYResult>;
+
+// Derived type for connected account display (without tokens)
+export type ConnectedAccountDisplay = NonNullable<
+  NonNullable<USER_CONNECTED_ACCOUNTS_DISPLAY_QUERYResult>["connectedAccounts"]
+>[number];
 
 /**
  * Get a user by their Clerk ID
@@ -158,6 +164,21 @@ export const HOST_BY_SLUG_WITH_TOKENS_QUERY = defineQuery(`*[
     accessToken,
     refreshToken,
     expiryDate,
+    isDefault
+  }
+}`);
+
+/**
+ * Get connected accounts for display (without sensitive tokens) - for Sanity Live
+ */
+export const USER_CONNECTED_ACCOUNTS_DISPLAY_QUERY = defineQuery(`*[
+  _type == "user"
+  && clerkId == $clerkId
+][0]{
+  connectedAccounts[]{
+    _key,
+    accountId,
+    email,
     isDefault
   }
 }`);

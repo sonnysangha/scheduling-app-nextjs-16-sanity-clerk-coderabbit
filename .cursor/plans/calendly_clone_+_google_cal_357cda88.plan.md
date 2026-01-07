@@ -51,13 +51,13 @@ todos:
       - calendar-actions
   - id: availability-page-gcal
     content: Update availability page to show Google busy times overlay
-    status: pending
+    status: completed
     dependencies:
       - calendar-actions
       - availability-calendar-sanity
   - id: settings-page
     content: Create settings page with AccountManager component
-    status: pending
+    status: completed
     dependencies:
       - calendar-actions
   - id: public-booking-page

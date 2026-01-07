@@ -163,26 +163,6 @@ export async function setDefaultCalendarAccount(
 }
 
 /**
- * Get the list of connected accounts for the current user (without tokens)
- */
-export async function getConnectedAccounts() {
-  const { userId } = await auth();
-  if (!userId) return [];
-
-  const user = await client.fetch(USER_WITH_TOKENS_QUERY, { clerkId: userId });
-
-  // Return accounts without sensitive token data
-  return (
-    user?.connectedAccounts?.map((account) => ({
-      _key: account._key,
-      accountId: account.accountId,
-      email: account.email,
-      isDefault: account.isDefault,
-    })) ?? []
-  );
-}
-
-/**
  * Cancel a booking (Host only - requires authentication)
  */
 export async function cancelBooking(bookingId: string): Promise<void> {

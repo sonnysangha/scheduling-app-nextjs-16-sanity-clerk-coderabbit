@@ -3,10 +3,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { writeClient } from "@/sanity/lib/writeClient";
 import { client } from "@/sanity/lib/client";
-import {
-  USER_ID_BY_CLERK_ID_QUERY,
-  USER_WITH_AVAILABILITY_QUERY,
-} from "@/sanity/queries/users";
+import { USER_ID_BY_CLERK_ID_QUERY } from "@/sanity/queries/users";
 
 // Get or create user document by Clerk ID
 async function getOrCreateUser(clerkId: string) {
@@ -38,11 +35,6 @@ async function getOrCreateUser(clerkId: string) {
   });
 
   return { _id: newUser._id };
-}
-
-// Get user by Clerk ID
-async function getUserByClerkId(clerkId: string) {
-  return client.fetch(USER_WITH_AVAILABILITY_QUERY, { clerkId });
 }
 
 // Save a new availability block
@@ -149,19 +141,4 @@ export async function bulkDeleteAvailabilityBlocks(
   const unsetPaths = blockKeys.map((key) => `availability[_key=="${key}"]`);
 
   await writeClient.patch(user._id).unset(unsetPaths).commit();
-}
-
-// Get all availability blocks for the current user
-export async function getAvailability(): Promise<
-  Array<{
-    _key: string;
-    startDateTime: string;
-    endDateTime: string;
-  }>
-> {
-  const { userId } = await auth();
-  if (!userId) return [];
-
-  const user = await getUserByClerkId(userId);
-  return user?.availability ?? [];
 }

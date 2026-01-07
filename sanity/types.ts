@@ -350,6 +350,16 @@ export type HOST_BY_SLUG_WITH_TOKENS_QUERYResult = {
     isDefault: boolean | null;
   }> | null;
 } | null;
+// Variable: USER_CONNECTED_ACCOUNTS_DISPLAY_QUERY
+// Query: *[  _type == "user"  && clerkId == $clerkId][0]{  connectedAccounts[]{    _key,    accountId,    email,    isDefault  }}
+export type USER_CONNECTED_ACCOUNTS_DISPLAY_QUERYResult = {
+  connectedAccounts: Array<{
+    _key: string;
+    accountId: string;
+    email: string;
+    isDefault: boolean | null;
+  }> | null;
+} | null;
 
 // Query TypeMap
 import "@sanity/client";
@@ -367,5 +377,6 @@ declare module "@sanity/client" {
     "*[\n  _type == \"user\"\n  && clerkId == $clerkId\n][0]{\n  _id,\n  availability[]{\n    _key,\n    startDateTime,\n    endDateTime\n  }\n}": USER_WITH_AVAILABILITY_QUERYResult;
     "*[\n  _type == \"user\"\n  && clerkId == $clerkId\n][0]{\n  _id,\n  connectedAccounts[]{\n    accountId\n  }\n}": USER_WITH_CONNECTED_ACCOUNTS_QUERYResult;
     "*[\n  _type == \"user\"\n  && slug.current == $slug\n][0]{\n  _id,\n  name,\n  email,\n  slug,\n  availability[]{\n    _key,\n    startDateTime,\n    endDateTime\n  },\n  connectedAccounts[]{\n    _key,\n    accountId,\n    email,\n    accessToken,\n    refreshToken,\n    expiryDate,\n    isDefault\n  }\n}": HOST_BY_SLUG_WITH_TOKENS_QUERYResult;
+    "*[\n  _type == \"user\"\n  && clerkId == $clerkId\n][0]{\n  connectedAccounts[]{\n    _key,\n    accountId,\n    email,\n    isDefault\n  }\n}": USER_CONNECTED_ACCOUNTS_DISPLAY_QUERYResult;
   }
 }
