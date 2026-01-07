@@ -2,14 +2,19 @@
 name: Calendly Clone + Google Cal
 overview: Build a Calendly-like scheduling app where hosts set availability, share booking links, and external guests can book slots. Google Calendar integration syncs busy times to show true availability and creates events with automatic email notifications when bookings are made.
 todos:
-  - id: install-deps
-    content: Install @clerk/nextjs, sanity, next-sanity, googleapis
+  - id: setup-sanity
+    content: Initialize Sanity Studio with npx sanity@latest init and configure client
     status: pending
+  - id: install-deps
+    content: Install @clerk/nextjs, googleapis and configure Clerk provider
+    status: pending
+    dependencies:
+      - setup-sanity
   - id: sanity-schemas
     content: Create user, connectedAccount, availabilitySlot, and booking schemas
     status: pending
     dependencies:
-      - install-deps
+      - setup-sanity
   - id: availability-actions
     content: Create lib/actions/availability.ts with optimistic save/delete actions
     status: pending
@@ -108,30 +113,9 @@ flowchart LR
 
 ---
 
-## Phase 1: Setup and Configuration
+## Phase 1: Sanity Setup
 
-### 1.1 Google Cloud Console
-
-- Create Google Cloud Project
-- Enable Google Calendar API
-- Configure OAuth consent screen
-- Create OAuth 2.0 credentials
-- Add redirect URI: `http://localhost:3000/api/calendar/callback`
-
-### 1.2 Dependencies
-
-```bash
-pnpm add googleapis @clerk/nextjs sanity next-sanity
-```
-
-### 1.3 Environment Variables
-
-```env
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=http://localhost:3000/api/calendar/callback
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+### -> completed already...
 
 ---
 
@@ -458,13 +442,31 @@ export const bookingType = defineType({
 
 ---
 
-## Phase 3: OAuth Flow (Route Handlers)
+## Phase 4: Google Cloud Setup
 
-### 3.1 OAuth Initiation
+### 4.1 Google Cloud Console
+
+- Create a new Google Cloud Project
+- Enable Google Calendar API
+- Configure OAuth consent screen (External, limited scopes)
+- Create OAuth 2.0 credentials (Web application type)
+- Add authorized redirect URI: `http://localhost:3000/api/calendar/callback`
+
+### 4.2 Install googleapis
+
+```bash
+pnpm add googleapis
+```
+
+---
+
+## Phase 5: OAuth Flow (Route Handlers)
+
+### 5.1 OAuth Initiation
 
 File: `app/api/calendar/connect/route.ts`
 
-### 3.2 OAuth Callback
+### 5.2 OAuth Callback
 
 File: `app/api/calendar/callback/route.ts`
 
@@ -472,7 +474,7 @@ File: `app/api/calendar/callback/route.ts`
 
 ---
 
-## Phase 4: Server Actions
+## Phase 6: Server Actions
 
 File: `lib/actions/calendar.ts`
 
@@ -613,7 +615,7 @@ export async function cancelBooking(bookingId: string) {
 
 ---
 
-## Phase 5: Pages and Routes
+## Phase 7: Pages and Routes
 
 ### 5.1 Host Pages (Authenticated)
 
@@ -689,7 +691,7 @@ export default function BookingPage({ params }) {
 
 ---
 
-## Phase 6: Availability Calculation Logic
+## Phase 8: Availability Calculation Logic
 
 ```typescript
 function calculateAvailableSlots(
