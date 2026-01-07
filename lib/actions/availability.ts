@@ -1,7 +1,6 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { revalidatePath } from "next/cache";
 import { writeClient } from "@/sanity/lib/writeClient";
 import { client } from "@/sanity/lib/client";
 
@@ -85,8 +84,6 @@ export async function saveAvailabilityBlock(block: {
     ])
     .commit();
 
-  revalidatePath("/availability");
-
   return {
     tempId: block.tempId,
     realKey: blockKey,
@@ -104,8 +101,6 @@ export async function deleteAvailabilityBlock(blockKey: string): Promise<void> {
     .patch(user._id)
     .unset([`availability[_key=="${blockKey}"]`])
     .commit();
-
-  revalidatePath("/availability");
 }
 
 // Update an availability block (for drag/resize)
@@ -131,8 +126,6 @@ export async function updateAvailabilityBlock(block: {
       [`availability[_key=="${block.key}"].endTime`]: formatTime(block.end),
     })
     .commit();
-
-  revalidatePath("/availability");
 }
 
 // Bulk save availability blocks (for copy to week)
@@ -159,8 +152,6 @@ export async function bulkSaveAvailabilityBlocks(
     .append("availability", newBlocks)
     .commit();
 
-  revalidatePath("/availability");
-
   return blocks.map((block, index) => ({
     tempId: block.tempId,
     realKey: newBlocks[index]._key,
@@ -179,8 +170,6 @@ export async function bulkDeleteAvailabilityBlocks(
   const unsetPaths = blockKeys.map((key) => `availability[_key=="${key}"]`);
 
   await writeClient.patch(user._id).unset(unsetPaths).commit();
-
-  revalidatePath("/availability");
 }
 
 // Get all availability blocks for the current user
