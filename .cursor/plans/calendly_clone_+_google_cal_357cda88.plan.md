@@ -12,17 +12,17 @@ todos:
       - setup-sanity
   - id: sanity-schemas
     content: Create user, connectedAccount, availabilitySlot, and booking schemas
-    status: pending
+    status: completed
     dependencies:
       - setup-sanity
   - id: availability-actions
     content: Create lib/actions/availability.ts with optimistic save/delete actions
-    status: pending
+    status: completed
     dependencies:
       - sanity-schemas
   - id: availability-calendar-sanity
     content: Update useCalendarEvents hook to persist to Sanity with optimistic UI
-    status: pending
+    status: completed
     dependencies:
       - availability-actions
   - id: setup-gcloud

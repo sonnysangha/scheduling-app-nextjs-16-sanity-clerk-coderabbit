@@ -5,6 +5,7 @@ import { Calendar, Views, type View } from "react-big-calendar";
 import withDragAndDrop, {
   type EventInteractionArgs,
 } from "react-big-calendar/lib/addons/dragAndDrop";
+import { Loader2 } from "lucide-react";
 
 import { localizer } from "../lib/localizer";
 import { CALENDAR_CONFIG, MAX_TIME, MIN_TIME } from "../lib/constants";
@@ -35,6 +36,7 @@ export function AvailabilityCalendar({
 
   const {
     events,
+    isPending,
     handleSelectSlot,
     handleEventDrop,
     handleEventResize,
@@ -88,7 +90,13 @@ export function AvailabilityCalendar({
   );
 
   return (
-    <div className="h-[calc(100vh-180px)] min-h-[400px] sm:min-h-[600px]">
+    <div className="relative h-[calc(100vh-180px)] min-h-[400px] sm:min-h-[600px]">
+      {isPending && (
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-2 rounded-md bg-background/80 px-3 py-1.5 text-sm text-muted-foreground backdrop-blur-sm">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Saving...
+        </div>
+      )}
       <DnDCalendar
         localizer={localizer}
         style={{ height: "100%" }}
