@@ -41,12 +41,12 @@ todos:
       - oauth-routes
   - id: calendar-actions
     content: Create lib/actions/calendar.ts (busy times, disconnect, set default)
-    status: in_progress
+    status: completed
     dependencies:
       - calendar-utility
   - id: booking-actions
     content: Create lib/actions/booking.ts (getAvailableSlots, createBooking)
-    status: pending
+    status: completed
     dependencies:
       - calendar-actions
   - id: availability-page-gcal
@@ -124,6 +124,7 @@ interface User { _id: string; name: string; }
 **ALWAYS use generated types** - never manually define Sanity types.
 
 Query files (`sanity/queries/*.ts`) are the ONLY place that imports from `@/sanity/types`.
+
 Application code imports derived types from query files.
 
 ```typescript

@@ -63,3 +63,26 @@ export const BOOKING_BY_ID_QUERY = defineQuery(`*[
   notes,
   googleEventId
 }`);
+
+/**
+ * Get booking with host's default calendar account (for cancellation)
+ */
+export const BOOKING_WITH_HOST_CALENDAR_QUERY = defineQuery(`*[
+  _type == "booking"
+  && _id == $bookingId
+][0]{
+  _id,
+  googleEventId,
+  host->{
+    _id,
+    connectedAccounts[isDefault == true][0]{
+      _key,
+      accountId,
+      email,
+      accessToken,
+      refreshToken,
+      expiryDate,
+      isDefault
+    }
+  }
+}`);

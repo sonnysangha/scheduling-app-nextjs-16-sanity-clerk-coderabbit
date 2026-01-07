@@ -8,12 +8,18 @@
  */
 
 import { defineQuery } from "next-sanity";
-import type { USER_WITH_TOKENS_QUERYResult } from "@/sanity/types";
+import type {
+  USER_WITH_TOKENS_QUERYResult,
+  HOST_BY_SLUG_WITH_TOKENS_QUERYResult,
+} from "@/sanity/types";
 
 // Derived type from USER_WITH_TOKENS_QUERY result
 export type ConnectedAccountWithTokens = NonNullable<
   NonNullable<USER_WITH_TOKENS_QUERYResult>["connectedAccounts"]
 >[number];
+
+// Derived type for host with tokens (for booking actions)
+export type HostWithTokens = NonNullable<HOST_BY_SLUG_WITH_TOKENS_QUERYResult>;
 
 /**
  * Get a user by their Clerk ID
@@ -126,5 +132,32 @@ export const USER_WITH_CONNECTED_ACCOUNTS_QUERY = defineQuery(`*[
   _id,
   connectedAccounts[]{
     accountId
+  }
+}`);
+
+/**
+ * Get host by slug for public booking page (includes tokens for calendar access)
+ */
+export const HOST_BY_SLUG_WITH_TOKENS_QUERY = defineQuery(`*[
+  _type == "user"
+  && slug.current == $slug
+][0]{
+  _id,
+  name,
+  email,
+  slug,
+  availability[]{
+    _key,
+    startDateTime,
+    endDateTime
+  },
+  connectedAccounts[]{
+    _key,
+    accountId,
+    email,
+    accessToken,
+    refreshToken,
+    expiryDate,
+    isDefault
   }
 }`);

@@ -9,8 +9,8 @@ export async function GET() {
     redirect("/");
   }
 
-  // Create a state parameter with the user ID for CSRF protection
-  // In production, you'd want to sign this or use a more secure method
+  // Create state parameter for CSRF protection
+  // Security: Clerk auth on callback verifies userId matches authenticated user
   const state = Buffer.from(
     JSON.stringify({
       userId,
