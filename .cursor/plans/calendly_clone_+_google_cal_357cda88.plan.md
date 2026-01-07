@@ -80,7 +80,7 @@ todos:
 flowchart LR
     subgraph host [Host Flow - Authenticated]
         A[Connect Google Accounts]
-        B[Set Weekly Availability]
+        B[Set Availability]
         C[Get Shareable Link]
     end
     
@@ -149,83 +149,55 @@ sequenceDiagram
 
 File: `lib/actions/availability.ts`
 
+Note: No `revalidatePath` - using Sanity Live for real-time updates instead.
+
 ```typescript
 'use server'
 
 import { auth } from '@clerk/nextjs/server';
-import { revalidatePath } from 'next/cache';
-import { sanityClient } from '@/lib/sanity';
+import { writeClient } from '@/sanity/lib/writeClient';
 
 export async function saveAvailabilityBlock(block: {
   tempId: string;
   start: Date;
   end: Date;
-}) {
+}): Promise<{ tempId: string; realKey: string }> {
   const { userId } = await auth();
   if (!userId) throw new Error('Unauthorized');
   
-  // Get or create user document
   const user = await getOrCreateUser(userId);
+  const blockKey = crypto.randomUUID();
   
-  // Add block to user's availability array
-  const result = await sanityClient
+  await writeClient
     .patch(user._id)
     .setIfMissing({ availability: [] })
     .append('availability', [{
-      _key: crypto.randomUUID(),
-      dayOfWeek: block.start.getDay(),
-      startTime: formatTime(block.start), // "09:00"
-      endTime: formatTime(block.end),     // "17:00"
-      // Store full datetime for specific date blocks
+      _key: blockKey,
       startDateTime: block.start.toISOString(),
       endDateTime: block.end.toISOString(),
     }])
     .commit();
   
-  return { 
-    tempId: block.tempId,
-    realId: result._id,
-  };
+  return { tempId: block.tempId, realKey: blockKey };
 }
 
-export async function deleteAvailabilityBlock(blockKey: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error('Unauthorized');
-  
-  const user = await getOrCreateUser(userId);
-  
-  await sanityClient
-    .patch(user._id)
-    .unset([`availability[_key=="${blockKey}"]`])
-    .commit();
-  
-  revalidatePath('/availability');
+export async function deleteAvailabilityBlock(blockKey: string): Promise<void> {
+  // Remove block from user's availability array
 }
 
 export async function updateAvailabilityBlock(block: {
   key: string;
   start: Date;
   end: Date;
-}) {
-  const { userId } = await auth();
-  if (!userId) throw new Error('Unauthorized');
-  
-  const user = await getOrCreateUser(userId);
-  
-  await sanityClient
-    .patch(user._id)
-    .set({
-      [`availability[_key=="${block.key}"].startDateTime`]: block.start.toISOString(),
-      [`availability[_key=="${block.key}"].endDateTime`]: block.end.toISOString(),
-      [`availability[_key=="${block.key}"].startTime`]: formatTime(block.start),
-      [`availability[_key=="${block.key}"].endTime`]: formatTime(block.end),
-    })
-    .commit();
-  
-  revalidatePath('/availability');
+}): Promise<void> {
+  // Update startDateTime and endDateTime for the block
 }
 
-export async function getAvailability() {
+export async function getAvailability(): Promise<Array<{
+  _key: string;
+  startDateTime: string;
+  endDateTime: string;
+}>> {
   const { userId } = await auth();
   if (!userId) return [];
   
@@ -380,7 +352,7 @@ export const userType = defineType({
       name: "availability",
       type: "array",
       of: [defineArrayMember({ type: "availabilitySlot" })],
-      description: "Weekly recurring availability",
+      description: "Specific date/time blocks when the user is available",
     }),
   ],
 });
@@ -390,21 +362,33 @@ export const userType = defineType({
 
 File: `sanity/schemaTypes/availabilitySlotType.ts`
 
+Simplified to just use datetime fields (no redundant dayOfWeek/startTime/endTime):
+
 ```typescript
 export const availabilitySlotType = defineType({
   name: "availabilitySlot",
   type: "object",
+  icon: ClockIcon,
   fields: [
     defineField({
-      name: "dayOfWeek",
-      type: "number", // 0 = Sunday, 6 = Saturday
+      name: "startDateTime",
+      title: "Start",
+      type: "datetime",
+      validation: (Rule) => Rule.required(),
     }),
-    defineField({ name: "startTime", type: "string" }), // "09:00"
-    defineField({ name: "endTime", type: "string" }),   // "17:00"
-    // Full datetime for specific date blocks (used by calendar)
-    defineField({ name: "startDateTime", type: "datetime" }),
-    defineField({ name: "endDateTime", type: "datetime" }),
+    defineField({
+      name: "endDateTime",
+      title: "End",
+      type: "datetime",
+      validation: (Rule) => Rule.required(),
+    }),
   ],
+  preview: {
+    select: { start: "startDateTime", end: "endDateTime" },
+    prepare({ start, end }) {
+      // Shows: "Mon, Jan 6" with subtitle "9:00 AM - 5:00 PM"
+    },
+  },
 });
 ```
 

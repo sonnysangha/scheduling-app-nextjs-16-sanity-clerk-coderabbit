@@ -39,6 +39,13 @@ export const userType = defineType({
       of: [defineArrayMember({ type: "availabilitySlot" })],
       description: "Time blocks when the user is available",
     }),
+    defineField({
+      name: "connectedAccounts",
+      title: "Connected Accounts",
+      type: "array",
+      of: [defineArrayMember({ type: "connectedAccount" })],
+      description: "Connected Google Calendar accounts",
+    }),
   ],
   preview: {
     select: {

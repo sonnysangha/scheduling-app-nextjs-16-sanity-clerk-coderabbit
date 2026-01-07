@@ -4,11 +4,6 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { writeClient } from "@/sanity/lib/writeClient";
 import { client } from "@/sanity/lib/client";
 
-// Helper to format time as HH:mm
-function formatTime(date: Date): string {
-  return date.toTimeString().slice(0, 5);
-}
-
 // Get or create user document by Clerk ID
 async function getOrCreateUser(clerkId: string) {
   // First try to find existing user
@@ -48,9 +43,6 @@ async function getUserByClerkId(clerkId: string) {
     _id: string;
     availability?: Array<{
       _key: string;
-      dayOfWeek: number;
-      startTime: string;
-      endTime: string;
       startDateTime: string;
       endDateTime: string;
     }>;
@@ -75,9 +67,6 @@ export async function saveAvailabilityBlock(block: {
     .append("availability", [
       {
         _key: blockKey,
-        dayOfWeek: block.start.getDay(),
-        startTime: formatTime(block.start),
-        endTime: formatTime(block.end),
         startDateTime: block.start.toISOString(),
         endDateTime: block.end.toISOString(),
       },
@@ -117,13 +106,10 @@ export async function updateAvailabilityBlock(block: {
   await writeClient
     .patch(user._id)
     .set({
-      [`availability[_key=="${block.key}"].dayOfWeek`]: block.start.getDay(),
       [`availability[_key=="${block.key}"].startDateTime`]:
         block.start.toISOString(),
       [`availability[_key=="${block.key}"].endDateTime`]:
         block.end.toISOString(),
-      [`availability[_key=="${block.key}"].startTime`]: formatTime(block.start),
-      [`availability[_key=="${block.key}"].endTime`]: formatTime(block.end),
     })
     .commit();
 }
@@ -139,9 +125,6 @@ export async function bulkSaveAvailabilityBlocks(
 
   const newBlocks = blocks.map((block) => ({
     _key: crypto.randomUUID(),
-    dayOfWeek: block.start.getDay(),
-    startTime: formatTime(block.start),
-    endTime: formatTime(block.end),
     startDateTime: block.start.toISOString(),
     endDateTime: block.end.toISOString(),
   }));
@@ -176,9 +159,6 @@ export async function bulkDeleteAvailabilityBlocks(
 export async function getAvailability(): Promise<
   Array<{
     _key: string;
-    dayOfWeek: number;
-    startTime: string;
-    endTime: string;
     startDateTime: string;
     endDateTime: string;
   }>

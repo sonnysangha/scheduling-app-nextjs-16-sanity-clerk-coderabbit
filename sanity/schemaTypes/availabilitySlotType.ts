@@ -1,39 +1,56 @@
 import { defineField, defineType } from "sanity";
+import { ClockIcon } from "@sanity/icons";
 
 export const availabilitySlotType = defineType({
   name: "availabilitySlot",
   title: "Availability Slot",
   type: "object",
+  icon: ClockIcon,
   fields: [
     defineField({
-      name: "dayOfWeek",
-      title: "Day of Week",
-      type: "number",
-      description: "0 = Sunday, 6 = Saturday",
-    }),
-    defineField({
-      name: "startTime",
-      title: "Start Time",
-      type: "string",
-      description: "Time in HH:mm format (e.g., 09:00)",
-    }),
-    defineField({
-      name: "endTime",
-      title: "End Time",
-      type: "string",
-      description: "Time in HH:mm format (e.g., 17:00)",
-    }),
-    defineField({
       name: "startDateTime",
-      title: "Start DateTime",
+      title: "Start",
       type: "datetime",
-      description: "Full datetime for specific date blocks",
+      validation: (Rule) => Rule.required(),
     }),
     defineField({
       name: "endDateTime",
-      title: "End DateTime",
+      title: "End",
       type: "datetime",
-      description: "Full datetime for specific date blocks",
+      validation: (Rule) => Rule.required(),
     }),
   ],
+  preview: {
+    select: {
+      start: "startDateTime",
+      end: "endDateTime",
+    },
+    prepare({ start, end }) {
+      if (!start || !end) return { title: "New Slot" };
+
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+
+      const dateStr = startDate.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+
+      const startTime = startDate.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+
+      const endTime = endDate.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+
+      return {
+        title: `${dateStr}`,
+        subtitle: `${startTime} - ${endTime}`,
+      };
+    },
+  },
 });
