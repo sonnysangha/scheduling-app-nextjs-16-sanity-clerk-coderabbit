@@ -3,14 +3,17 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { writeClient } from "@/sanity/lib/writeClient";
 import { client } from "@/sanity/lib/client";
+import {
+  USER_ID_BY_CLERK_ID_QUERY,
+  USER_WITH_AVAILABILITY_QUERY,
+} from "@/sanity/queries/users";
 
 // Get or create user document by Clerk ID
 async function getOrCreateUser(clerkId: string) {
   // First try to find existing user
-  const existingUser = await client.fetch<{ _id: string } | null>(
-    `*[_type == "user" && clerkId == $clerkId][0]{ _id }`,
-    { clerkId }
-  );
+  const existingUser = await client.fetch(USER_ID_BY_CLERK_ID_QUERY, {
+    clerkId,
+  });
 
   if (existingUser) {
     return existingUser;
@@ -39,14 +42,7 @@ async function getOrCreateUser(clerkId: string) {
 
 // Get user by Clerk ID
 async function getUserByClerkId(clerkId: string) {
-  return client.fetch<{
-    _id: string;
-    availability?: Array<{
-      _key: string;
-      startDateTime: string;
-      endDateTime: string;
-    }>;
-  } | null>(`*[_type == "user" && clerkId == $clerkId][0]`, { clerkId });
+  return client.fetch(USER_WITH_AVAILABILITY_QUERY, { clerkId });
 }
 
 // Save a new availability block

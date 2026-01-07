@@ -4,10 +4,10 @@ overview: Build a Calendly-like scheduling app where hosts set availability, sha
 todos:
   - id: setup-sanity
     content: Initialize Sanity Studio with npx sanity@latest init and configure client
-    status: pending
+    status: completed
   - id: install-deps
     content: Install @clerk/nextjs, googleapis and configure Clerk provider
-    status: pending
+    status: completed
     dependencies:
       - setup-sanity
   - id: sanity-schemas
@@ -27,21 +27,21 @@ todos:
       - availability-actions
   - id: setup-gcloud
     content: Create Google Cloud project and configure OAuth credentials
-    status: pending
+    status: completed
   - id: oauth-routes
     content: Build /api/calendar/connect and /callback route handlers
-    status: pending
+    status: completed
     dependencies:
       - sanity-schemas
       - setup-gcloud
   - id: calendar-utility
     content: Create lib/google-calendar.ts with OAuth client and token refresh
-    status: pending
+    status: completed
     dependencies:
       - oauth-routes
   - id: calendar-actions
     content: Create lib/actions/calendar.ts (busy times, disconnect, set default)
-    status: pending
+    status: in_progress
     dependencies:
       - calendar-utility
   - id: booking-actions
@@ -73,6 +73,88 @@ todos:
 ---
 
 # Calendly Clone with Google Calendar Integration
+
+---
+
+## ⚠️ Development Rules (MUST FOLLOW)
+
+### TypeGen & GROQ Queries
+
+1. **NEVER write inline GROQ queries** - All queries must use `defineQuery` from `next-sanity`
+2. **All queries go in `sanity/queries/`** - Organized by domain (users.ts, bookings.ts, etc.)
+3. **Query naming convention**: Use `SCREAMING_SNAKE_CASE` (e.g., `USER_BY_CLERK_ID_QUERY`)
+4. **Run `pnpm run typegen`** after ANY schema or query changes
+5. **Use generated types** - Never manually define Sanity types
+6. **NO barrel exports (index.ts re-exports)** - Import directly from source files
+
+### Query Organization
+
+```
+sanity/queries/
+├── users.ts      # User-related queries + derived types
+└── bookings.ts   # Booking-related queries + derived types
+```
+
+### Usage Pattern
+
+```typescript
+// ✅ CORRECT - Use defineQuery in queries folder
+// sanity/queries/users.ts
+export const USER_BY_CLERK_ID_QUERY = defineQuery(`*[
+  _type == "user"
+  && clerkId == $clerkId
+][0]{ _id, name, email }`);
+
+// ✅ CORRECT - Import directly from source file
+import { USER_BY_CLERK_ID_QUERY } from "@/sanity/queries/users";
+const user = await client.fetch(USER_BY_CLERK_ID_QUERY, { clerkId });
+
+// ❌ WRONG - Barrel export
+import { USER_BY_CLERK_ID_QUERY } from "@/sanity/queries";
+
+// ❌ WRONG - Inline query
+const user = await client.fetch(`*[_type == "user" && clerkId == $clerkId][0]`);
+
+// ❌ WRONG - Manual type definition
+interface User { _id: string; name: string; }
+```
+
+### Type Derivation
+
+**ALWAYS use generated types** - never manually define Sanity types.
+
+Query files (`sanity/queries/*.ts`) are the ONLY place that imports from `@/sanity/types`.
+Application code imports derived types from query files.
+
+```typescript
+// sanity/queries/users.ts
+import type { USER_WITH_TOKENS_QUERYResult } from "@/sanity/types"; // ✅ OK in query files
+
+// ✅ CORRECT - Derive from generated type
+export type ConnectedAccountWithTokens = NonNullable<
+  NonNullable<USER_WITH_TOKENS_QUERYResult>["connectedAccounts"]
+>[number];
+
+// ❌ WRONG - Manual type definition
+export type ConnectedAccountWithTokens = {
+  _key: string;
+  accountId: string;
+  // ...
+};
+
+// Application code:
+import { type ConnectedAccountWithTokens } from "@/sanity/queries/users"; // ✅
+import type { USER_WITH_TOKENS_QUERYResult } from "@/sanity/types"; // ❌ Don't do this in app code
+```
+
+### Scripts
+
+```bash
+pnpm run typegen   # Extract schema + generate types
+pnpm run typecheck # Verify TypeScript compiles
+```
+
+---
 
 ## User Flow Overview
 
@@ -156,6 +238,8 @@ Note: No `revalidatePath` - using Sanity Live for real-time updates instead.
 
 import { auth } from '@clerk/nextjs/server';
 import { writeClient } from '@/sanity/lib/writeClient';
+import { client } from '@/sanity/lib/client';
+import { USER_ID_BY_CLERK_ID_QUERY, USER_WITH_AVAILABILITY_QUERY } from '@/sanity/queries';
 
 export async function saveAvailabilityBlock(block: {
   tempId: string;
@@ -193,15 +277,12 @@ export async function updateAvailabilityBlock(block: {
   // Update startDateTime and endDateTime for the block
 }
 
-export async function getAvailability(): Promise<Array<{
-  _key: string;
-  startDateTime: string;
-  endDateTime: string;
-}>> {
+export async function getAvailability() {
   const { userId } = await auth();
   if (!userId) return [];
   
-  const user = await getUserByClerkId(userId);
+  // Uses typed query - returns USER_WITH_AVAILABILITY_QUERYResult
+  const user = await client.fetch(USER_WITH_AVAILABILITY_QUERY, { clerkId: userId });
   return user?.availability ?? [];
 }
 ```
@@ -735,6 +816,10 @@ sanity/
     connectedAccountType.ts
     availabilitySlotType.ts
     bookingType.ts
+  queries/                    # GROQ queries with defineQuery (NO index.ts barrel)
+    users.ts                  # User queries + derived types
+    bookings.ts               # Booking queries + derived types
+  types.ts                    # AUTO-GENERATED by `pnpm run typegen`
 ```
 
 ---
