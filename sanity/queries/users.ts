@@ -182,3 +182,15 @@ export const USER_CONNECTED_ACCOUNTS_DISPLAY_QUERY = defineQuery(`*[
     isDefault
   }
 }`);
+
+/**
+ * Get user's slug and name for share link
+ */
+export const USER_SLUG_QUERY = defineQuery(`*[
+  _type == "user"
+  && clerkId == $clerkId
+][0]{
+  _id,
+  name,
+  slug
+}`);

@@ -127,3 +127,71 @@ export async function revokeGoogleToken(accessToken: string) {
     // Continue anyway - the token will expire eventually
   }
 }
+
+// Attendee response status type
+export type AttendeeStatus =
+  | "accepted"
+  | "declined"
+  | "tentative"
+  | "needsAction"
+  | "unknown";
+
+// Get event attendee status from Google Calendar
+export async function getEventAttendeeStatus(
+  account: ConnectedAccountWithTokens,
+  eventId: string,
+  guestEmail: string
+): Promise<AttendeeStatus> {
+  try {
+    const calendar = await getCalendarClient(account);
+    const response = await calendar.events.get({
+      calendarId: "primary",
+      eventId,
+    });
+
+    const attendee = response.data.attendees?.find(
+      (a) => a.email?.toLowerCase() === guestEmail.toLowerCase()
+    );
+
+    if (!attendee?.responseStatus) {
+      return "unknown";
+    }
+
+    return attendee.responseStatus as AttendeeStatus;
+  } catch (error) {
+    console.error("Failed to get event attendee status:", error);
+    return "unknown";
+  }
+}
+
+// Get both host and guest attendee statuses from Google Calendar event
+export async function getEventAttendeeStatuses(
+  account: ConnectedAccountWithTokens,
+  eventId: string,
+  hostEmail: string,
+  guestEmail: string
+): Promise<{ hostStatus: AttendeeStatus; guestStatus: AttendeeStatus }> {
+  try {
+    const calendar = await getCalendarClient(account);
+    const response = await calendar.events.get({
+      calendarId: "primary",
+      eventId,
+    });
+
+    const hostAttendee = response.data.attendees?.find(
+      (a) => a.email?.toLowerCase() === hostEmail.toLowerCase()
+    );
+    const guestAttendee = response.data.attendees?.find(
+      (a) => a.email?.toLowerCase() === guestEmail.toLowerCase()
+    );
+
+    return {
+      hostStatus: (hostAttendee?.responseStatus as AttendeeStatus) || "unknown",
+      guestStatus:
+        (guestAttendee?.responseStatus as AttendeeStatus) || "unknown",
+    };
+  } catch (error) {
+    console.error("Failed to get event attendee statuses:", error);
+    return { hostStatus: "unknown", guestStatus: "unknown" };
+  }
+}

@@ -135,6 +135,15 @@
   border-radius: 4px;
 }
 
+/* Increase time slot height for better visibility */
+.rbc-timeslot-group {
+  min-height: 80px; /* Default is ~40px, doubling it */
+}
+
+.rbc-time-slot {
+  min-height: 20px; /* Each 15-min slot */
+}
+
 /* Hide all-day section - not needed for availability */
 .rbc-allday-cell {
   display: none;
@@ -150,6 +159,15 @@
 
 /* Mobile responsive calendar styles */
 @media (max-width: 640px) {
+  /* Reduce slot height on mobile */
+  .rbc-timeslot-group {
+    min-height: 60px;
+  }
+
+  .rbc-time-slot {
+    min-height: 15px;
+  }
+
   /* Consistent time gutter width on mobile */
   .rbc-time-gutter,
   .rbc-time-header-gutter {

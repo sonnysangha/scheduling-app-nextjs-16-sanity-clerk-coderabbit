@@ -5,7 +5,12 @@ import { writeClient } from "@/sanity/lib/writeClient";
 import { client } from "@/sanity/lib/client";
 import { USER_WITH_TOKENS_QUERY } from "@/sanity/queries/users";
 import { BOOKING_WITH_HOST_CALENDAR_QUERY } from "@/sanity/queries/bookings";
-import { getCalendarClient, revokeGoogleToken } from "@/lib/google-calendar";
+import {
+  getCalendarClient,
+  revokeGoogleToken,
+  getEventAttendeeStatuses,
+  type AttendeeStatus,
+} from "@/lib/google-calendar";
 
 // ============================================================================
 // Types
@@ -198,4 +203,56 @@ export async function cancelBooking(bookingId: string): Promise<void> {
 
   // Update booking status in Sanity
   await writeClient.patch(bookingId).set({ status: "cancelled" }).commit();
+}
+
+export type BookingStatuses = {
+  guestStatus: AttendeeStatus;
+  hostStatus: AttendeeStatus;
+};
+
+/**
+ * Get both host and guest attendee statuses for multiple bookings
+ */
+export async function getBookingAttendeeStatuses(
+  bookings: Array<{
+    id: string;
+    googleEventId: string | null;
+    guestEmail: string;
+  }>
+): Promise<Record<string, BookingStatuses>> {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const user = await client.fetch(USER_WITH_TOKENS_QUERY, { clerkId: userId });
+  if (!user?.connectedAccounts?.length) {
+    return {};
+  }
+
+  // Find the default account (which is also the host's email)
+  const account = user.connectedAccounts.find((a) => a.isDefault);
+  if (!account?.accessToken || !account?.refreshToken) {
+    return {};
+  }
+
+  const hostEmail = account.email;
+  const statuses: Record<string, BookingStatuses> = {};
+
+  // Fetch statuses in parallel
+  const bookingsWithEvents = bookings.filter((b) => b.googleEventId);
+
+  await Promise.all(
+    bookingsWithEvents.map(async (booking) => {
+      if (booking.googleEventId) {
+        const { hostStatus, guestStatus } = await getEventAttendeeStatuses(
+          account,
+          booking.googleEventId,
+          hostEmail,
+          booking.guestEmail
+        );
+        statuses[booking.id] = { hostStatus, guestStatus };
+      }
+    })
+  );
+
+  return statuses;
 }

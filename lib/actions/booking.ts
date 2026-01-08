@@ -7,7 +7,11 @@ import {
   type HostWithTokens,
 } from "@/sanity/queries/users";
 import { BOOKINGS_IN_RANGE_QUERY } from "@/sanity/queries/bookings";
-import { getCalendarClient } from "@/lib/google-calendar";
+import { MEETING_TYPE_BY_SLUGS_QUERY } from "@/sanity/queries/meetingTypes";
+import {
+  getCalendarClient,
+  getEventAttendeeStatus,
+} from "@/lib/google-calendar";
 import {
   startOfDay,
   endOfDay,
@@ -15,6 +19,7 @@ import {
   isWithinInterval,
   parseISO,
 } from "date-fns";
+import { computeAvailableDates } from "@/lib/availability";
 
 // ============================================================================
 // Types
@@ -27,6 +32,7 @@ export type TimeSlot = {
 
 export type BookingData = {
   hostSlug: string;
+  meetingTypeSlug?: string;
   startTime: Date;
   endTime: Date;
   guestName: string;
@@ -82,10 +88,44 @@ export async function getAvailableSlots(
     endDate: dayEnd.toISOString(),
   });
 
-  // 4. Get Google Calendar busy times
+  // 4. Get attendee statuses for bookings (to exclude declined ones)
+  const defaultAccount = host.connectedAccounts?.find((a) => a.isDefault);
+  const declinedBookingIds = new Set<string>();
+
+  if (defaultAccount?.accessToken && defaultAccount?.refreshToken) {
+    // Check attendee status for each booking with a Google event
+    await Promise.all(
+      existingBookings
+        .filter((b) => b.googleEventId && b.guestEmail)
+        .map(async (booking) => {
+          // Skip if no googleEventId (satisfies type checker even though filter guarantees it)
+          if (!booking.googleEventId) return;
+
+          try {
+            const status = await getEventAttendeeStatus(
+              defaultAccount,
+              booking.googleEventId,
+              booking.guestEmail
+            );
+            if (status === "declined") {
+              declinedBookingIds.add(booking._id);
+            }
+          } catch {
+            // If we can't check status, assume booking is still valid
+          }
+        })
+    );
+  }
+
+  // Filter out declined bookings - those slots are available again
+  const activeBookings = existingBookings.filter(
+    (b) => !declinedBookingIds.has(b._id)
+  );
+
+  // 5. Get Google Calendar busy times
   const busyTimes = await getHostGoogleBusyTimes(host, dayStart, dayEnd);
 
-  // 5. Generate time slots from availability
+  // 6. Generate time slots from availability
   const allSlots: TimeSlot[] = [];
 
   for (const availSlot of availabilityForDate) {
@@ -105,10 +145,10 @@ export async function getAvailableSlots(
     }
   }
 
-  // 6. Filter out slots that overlap with bookings or busy times
+  // 7. Filter out slots that overlap with active bookings or busy times
   const availableSlots = allSlots.filter((slot) => {
-    // Check against existing bookings
-    const hasBookingConflict = existingBookings.some((booking) => {
+    // Check against active bookings (excluding declined ones)
+    const hasBookingConflict = activeBookings.some((booking) => {
       const bookingStart = parseISO(booking.startTime);
       const bookingEnd = parseISO(booking.endTime);
       return slot.start < bookingEnd && slot.end > bookingStart;
@@ -128,6 +168,52 @@ export async function getAvailableSlots(
 }
 
 /**
+ * Get dates with available slots within a date range (for calendar highlighting)
+ * Used for client-side month navigation when user navigates beyond initial data.
+ * Returns an array of date strings (YYYY-MM-DD) that have at least one available slot.
+ */
+export async function getAvailableDates(
+  hostSlug: string,
+  startDate: Date,
+  endDate: Date,
+  slotDurationMinutes = 30
+): Promise<string[]> {
+  // 1. Get host with availability
+  const host = await client.fetch(HOST_BY_SLUG_WITH_TOKENS_QUERY, {
+    slug: hostSlug,
+  });
+
+  if (!host) {
+    return [];
+  }
+
+  // 2. Get existing bookings in range
+  const existingBookings = await client.fetch(BOOKINGS_IN_RANGE_QUERY, {
+    hostId: host._id,
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+  });
+
+  // 3. Get Google Calendar busy times (if available)
+  let busyTimes: Array<{ start: Date; end: Date }> = [];
+  try {
+    busyTimes = await getHostGoogleBusyTimes(host, startDate, endDate);
+  } catch {
+    // Continue without busy times if fetch fails
+  }
+
+  // 4. Compute available dates using shared utility
+  return computeAvailableDates(
+    host.availability ?? [],
+    existingBookings,
+    startDate,
+    endDate,
+    slotDurationMinutes,
+    busyTimes
+  );
+}
+
+/**
  * Create a booking
  */
 export async function createBooking(
@@ -142,9 +228,25 @@ export async function createBooking(
     throw new Error("Host not found");
   }
 
-  // 2. Verify slot is still available (prevent race conditions)
+  // 2. Get the meeting type if provided
+  let meetingTypeId: string | undefined;
+  let meetingTypeName: string | undefined;
+
+  if (data.meetingTypeSlug) {
+    const meetingType = await client.fetch(MEETING_TYPE_BY_SLUGS_QUERY, {
+      hostSlug: data.hostSlug,
+      meetingTypeSlug: data.meetingTypeSlug,
+    });
+
+    if (meetingType) {
+      meetingTypeId = meetingType._id;
+      meetingTypeName = meetingType.name ?? undefined;
+    }
+  }
+
+  // 3. Verify slot is still available (prevent race conditions)
   const isAvailable = await checkSlotAvailable(
-    host._id,
+    host,
     data.startTime,
     data.endTime
   );
@@ -153,21 +255,26 @@ export async function createBooking(
     throw new Error("This time slot is no longer available");
   }
 
-  // 3. Find the default connected account for creating calendar events
+  // 4. Find the default connected account for creating calendar events
   const defaultAccount = host.connectedAccounts?.find((a) => a.isDefault);
 
   let googleEventId: string | undefined;
 
-  // 4. Create Google Calendar event if we have a connected account
+  // 5. Create Google Calendar event if we have a connected account
   if (defaultAccount?.accessToken && defaultAccount?.refreshToken) {
     try {
       const calendar = await getCalendarClient(defaultAccount);
+
+      // Build event summary with meeting type if available
+      const summary = meetingTypeName
+        ? `${meetingTypeName}: ${host.name} x ${data.guestName}`
+        : `Meeting: ${host.name} x ${data.guestName}`;
 
       const event = await calendar.events.insert({
         calendarId: "primary",
         sendUpdates: "all", // Sends email invites to attendees
         requestBody: {
-          summary: `Meeting with ${data.guestName}`,
+          summary,
           description: data.notes || undefined,
           start: {
             dateTime: data.startTime.toISOString(),
@@ -189,10 +296,13 @@ export async function createBooking(
     }
   }
 
-  // 5. Create booking in Sanity
+  // 6. Create booking in Sanity
   const booking = await writeClient.create({
     _type: "booking",
     host: { _type: "reference", _ref: host._id },
+    ...(meetingTypeId && {
+      meetingType: { _type: "reference", _ref: meetingTypeId },
+    }),
     guestName: data.guestName,
     guestEmail: data.guestEmail,
     startTime: data.startTime.toISOString(),
@@ -257,18 +367,55 @@ async function getHostGoogleBusyTimes(
  * Check if a time slot is available
  */
 async function checkSlotAvailable(
-  hostId: string,
+  host: HostWithTokens,
   startTime: Date,
   endTime: Date
 ): Promise<boolean> {
   const existingBookings = await client.fetch(BOOKINGS_IN_RANGE_QUERY, {
-    hostId,
+    hostId: host._id,
     startDate: startTime.toISOString(),
     endDate: endTime.toISOString(),
   });
 
-  // Check for any overlapping bookings
+  // Get attendee statuses for overlapping bookings
+  const defaultAccount = host.connectedAccounts?.find((a) => a.isDefault);
+  const declinedBookingIds = new Set<string>();
+
+  if (defaultAccount?.accessToken && defaultAccount?.refreshToken) {
+    // Find overlapping bookings first
+    const overlappingBookings = existingBookings.filter((booking) => {
+      const bookingStart = parseISO(booking.startTime);
+      const bookingEnd = parseISO(booking.endTime);
+      return startTime < bookingEnd && endTime > bookingStart;
+    });
+
+    // Check their attendee status
+    await Promise.all(
+      overlappingBookings
+        .filter((b) => b.googleEventId && b.guestEmail)
+        .map(async (booking) => {
+          // Skip if no googleEventId (satisfies type checker even though filter guarantees it)
+          if (!booking.googleEventId) return;
+
+          try {
+            const status = await getEventAttendeeStatus(
+              defaultAccount,
+              booking.googleEventId,
+              booking.guestEmail
+            );
+            if (status === "declined") {
+              declinedBookingIds.add(booking._id);
+            }
+          } catch {
+            // If we can't check status, assume booking is still valid
+          }
+        })
+    );
+  }
+
+  // Check for any overlapping bookings (excluding declined ones)
   return !existingBookings.some((booking) => {
+    if (declinedBookingIds.has(booking._id)) return false; // Declined = available
     const bookingStart = parseISO(booking.startTime);
     const bookingEnd = parseISO(booking.endTime);
     return startTime < bookingEnd && endTime > bookingStart;

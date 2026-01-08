@@ -6,6 +6,11 @@
  */
 
 import { defineQuery } from "next-sanity";
+import type { HOST_BOOKINGS_BY_CLERK_ID_QUERYResult } from "@/sanity/types";
+
+// Derived type for a single booking (for dashboard)
+export type HostBooking =
+  NonNullable<HOST_BOOKINGS_BY_CLERK_ID_QUERYResult>[number];
 
 /**
  * Get all bookings for a host
@@ -38,7 +43,9 @@ export const BOOKINGS_IN_RANGE_QUERY = defineQuery(`*[
 ] | order(startTime asc) {
   _id,
   startTime,
-  endTime
+  endTime,
+  googleEventId,
+  guestEmail
 }`);
 
 /**
@@ -85,4 +92,67 @@ export const BOOKING_WITH_HOST_CALENDAR_QUERY = defineQuery(`*[
       isDefault
     }
   }
+}`);
+
+/**
+ * Get all bookings for a host by their Clerk ID (for dashboard)
+ */
+export const HOST_BOOKINGS_BY_CLERK_ID_QUERY = defineQuery(`*[
+  _type == "booking"
+  && host->clerkId == $clerkId
+] | order(startTime desc) {
+  _id,
+  _type,
+  guestName,
+  guestEmail,
+  startTime,
+  endTime,
+  status,
+  notes,
+  googleEventId
+}`);
+
+/**
+ * Get upcoming confirmed bookings for a host by Clerk ID (for calendar display)
+ */
+export const HOST_UPCOMING_BOOKINGS_QUERY = defineQuery(`*[
+  _type == "booking"
+  && host->clerkId == $clerkId
+  && status == "confirmed"
+  && startTime >= $startDate
+] | order(startTime asc) {
+  _id,
+  guestName,
+  guestEmail,
+  startTime,
+  endTime,
+  googleEventId
+}`);
+
+/**
+ * Get bookings for a host within a date range by host slug (for public booking page)
+ */
+export const BOOKINGS_BY_HOST_SLUG_IN_RANGE_QUERY = defineQuery(`*[
+  _type == "booking"
+  && host->slug.current == $hostSlug
+  && status == "confirmed"
+  && startTime >= $startDate
+  && startTime <= $endDate
+] | order(startTime asc) {
+  _id,
+  startTime,
+  endTime
+}`);
+
+/**
+ * Get ALL confirmed bookings for a host by slug (for real-time booking page)
+ */
+export const ALL_BOOKINGS_BY_HOST_SLUG_QUERY = defineQuery(`*[
+  _type == "booking"
+  && host->slug.current == $hostSlug
+  && status == "confirmed"
+] | order(startTime asc) {
+  _id,
+  startTime,
+  endTime
 }`);

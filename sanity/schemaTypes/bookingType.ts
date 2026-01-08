@@ -15,6 +15,13 @@ export const bookingType = defineType({
       validation: (Rule) => Rule.required(),
     }),
     defineField({
+      name: "meetingType",
+      title: "Meeting Type",
+      type: "reference",
+      to: [{ type: "meetingType" }],
+      description: "The type of meeting booked",
+    }),
+    defineField({
       name: "guestName",
       title: "Guest Name",
       type: "string",
@@ -71,8 +78,10 @@ export const bookingType = defineType({
       startTime: "startTime",
       hostName: "host.name",
       status: "status",
+      meetingTypeName: "meetingType.name",
+      meetingTypeDuration: "meetingType.duration",
     },
-    prepare({ guestName, startTime, hostName, status }) {
+    prepare({ guestName, startTime, hostName, status, meetingTypeName, meetingTypeDuration }) {
       const date = startTime
         ? new Date(startTime).toLocaleDateString("en-US", {
             weekday: "short",
@@ -83,9 +92,12 @@ export const bookingType = defineType({
           })
         : "No date";
 
+      const duration = meetingTypeDuration ? `${meetingTypeDuration}min` : "";
+      const type = meetingTypeName ? ` · ${meetingTypeName}` : "";
+
       return {
-        title: `${guestName || "Guest"} → ${hostName || "Host"}`,
-        subtitle: `${date}${status === "cancelled" ? " (Cancelled)" : ""}`,
+        title: `${guestName || "Guest"} → ${hostName || "Host"}${type}`,
+        subtitle: `${date} ${duration}${status === "cancelled" ? " (Cancelled)" : ""}`,
       };
     },
   },

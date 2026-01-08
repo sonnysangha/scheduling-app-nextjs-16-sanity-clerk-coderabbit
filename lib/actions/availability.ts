@@ -3,7 +3,17 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { writeClient } from "@/sanity/lib/writeClient";
 import { client } from "@/sanity/lib/client";
-import { USER_ID_BY_CLERK_ID_QUERY } from "@/sanity/queries/users";
+import {
+  USER_ID_BY_CLERK_ID_QUERY,
+  USER_SLUG_QUERY,
+} from "@/sanity/queries/users";
+import {
+  MEETING_TYPES_BY_HOST_QUERY,
+  HOST_ID_BY_CLERK_ID_QUERY,
+  type MeetingTypeForHost,
+} from "@/sanity/queries/meetingTypes";
+import { generateSlug, getBaseUrl } from "@/lib/url";
+import type { TimeBlock } from "@/components/calendar/types";
 
 // Get or create user document by Clerk ID
 async function getOrCreateUser(clerkId: string) {
@@ -37,108 +47,187 @@ async function getOrCreateUser(clerkId: string) {
   return { _id: newUser._id };
 }
 
-// Save a new availability block
-export async function saveAvailabilityBlock(block: {
-  tempId: string;
-  start: Date;
-  end: Date;
-}): Promise<{ tempId: string; realKey: string }> {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const user = await getOrCreateUser(userId);
-  const blockKey = crypto.randomUUID();
-
-  await writeClient
-    .patch(user._id)
-    .setIfMissing({ availability: [] })
-    .append("availability", [
-      {
-        _key: blockKey,
-        startDateTime: block.start.toISOString(),
-        endDateTime: block.end.toISOString(),
-      },
-    ])
-    .commit();
-
-  return {
-    tempId: block.tempId,
-    realKey: blockKey,
-  };
-}
-
-// Delete an availability block
-export async function deleteAvailabilityBlock(blockKey: string): Promise<void> {
+/**
+ * Save all availability blocks (replaces entire availability)
+ * Returns the new blocks with their real IDs from Sanity
+ */
+export async function saveAvailability(
+  blocks: TimeBlock[]
+): Promise<Array<{ id: string; start: string; end: string }>> {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
   const user = await getOrCreateUser(userId);
 
-  await writeClient
-    .patch(user._id)
-    .unset([`availability[_key=="${blockKey}"]`])
-    .commit();
-}
-
-// Update an availability block (for drag/resize)
-export async function updateAvailabilityBlock(block: {
-  key: string;
-  start: Date;
-  end: Date;
-}): Promise<void> {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const user = await getOrCreateUser(userId);
-
-  await writeClient
-    .patch(user._id)
-    .set({
-      [`availability[_key=="${block.key}"].startDateTime`]:
-        block.start.toISOString(),
-      [`availability[_key=="${block.key}"].endDateTime`]:
-        block.end.toISOString(),
-    })
-    .commit();
-}
-
-// Bulk save availability blocks (for copy to week)
-export async function bulkSaveAvailabilityBlocks(
-  blocks: Array<{ tempId: string; start: Date; end: Date }>
-): Promise<Array<{ tempId: string; realKey: string }>> {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const user = await getOrCreateUser(userId);
-
-  const newBlocks = blocks.map((block) => ({
+  // Convert blocks to Sanity format with new keys
+  const sanityBlocks = blocks.map((block) => ({
     _key: crypto.randomUUID(),
     startDateTime: block.start.toISOString(),
     endDateTime: block.end.toISOString(),
   }));
 
+  // Replace the entire availability array
   await writeClient
     .patch(user._id)
-    .setIfMissing({ availability: [] })
-    .append("availability", newBlocks)
+    .set({ availability: sanityBlocks })
     .commit();
 
-  return blocks.map((block, index) => ({
-    tempId: block.tempId,
-    realKey: newBlocks[index]._key,
+  // Return the blocks with their new IDs
+  return sanityBlocks.map((block) => ({
+    id: block._key,
+    start: block.startDateTime,
+    end: block.endDateTime,
   }));
 }
 
-// Bulk delete availability blocks (for clear week)
-export async function bulkDeleteAvailabilityBlocks(
-  blockKeys: string[]
-): Promise<void> {
+/**
+ * Get or create the user's booking link
+ */
+export async function getOrCreateBookingLink(): Promise<{
+  slug: string;
+  url: string;
+}> {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-  const user = await getOrCreateUser(userId);
+  // Get user with slug
+  const user = await client.fetch(USER_SLUG_QUERY, { clerkId: userId });
 
-  const unsetPaths = blockKeys.map((key) => `availability[_key=="${key}"]`);
+  if (!user) {
+    // Create user first
+    const newUser = await getOrCreateUser(userId);
+    const clerkUser = await currentUser();
+    const name = clerkUser?.firstName
+      ? `${clerkUser.firstName} ${clerkUser.lastName || ""}`.trim()
+      : clerkUser?.username || "user";
 
-  await writeClient.patch(user._id).unset(unsetPaths).commit();
+    const baseSlug = generateSlug(name);
+    const uniqueSlug = `${baseSlug}-${Date.now().toString(36)}`;
+
+    await writeClient
+      .patch(newUser._id)
+      .set({ slug: { _type: "slug", current: uniqueSlug } })
+      .commit();
+
+    const baseUrl = getBaseUrl();
+    return { slug: uniqueSlug, url: `${baseUrl}/book/${uniqueSlug}` };
+  }
+
+  // If slug exists, return it
+  if (user.slug?.current) {
+    const baseUrl = getBaseUrl();
+    return {
+      slug: user.slug.current,
+      url: `${baseUrl}/book/${user.slug.current}`,
+    };
+  }
+
+  // Create slug for existing user
+  const name = user.name || "user";
+  const baseSlug = generateSlug(name);
+  const uniqueSlug = `${baseSlug}-${Date.now().toString(36)}`;
+
+  await writeClient
+    .patch(user._id)
+    .set({ slug: { _type: "slug", current: uniqueSlug } })
+    .commit();
+
+  const baseUrl = getBaseUrl();
+  return { slug: uniqueSlug, url: `${baseUrl}/book/${uniqueSlug}` };
+}
+
+/**
+ * Get all meeting types for the current user
+ */
+export async function getMeetingTypes(): Promise<MeetingTypeForHost[]> {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const meetingTypes = await client.fetch(MEETING_TYPES_BY_HOST_QUERY, {
+    clerkId: userId,
+  });
+
+  return meetingTypes;
+}
+
+type MeetingDuration = 15 | 30 | 45 | 60 | 90;
+
+/**
+ * Create a new meeting type for the current user
+ */
+export async function createMeetingType(data: {
+  name: string;
+  duration: MeetingDuration;
+  description?: string;
+  isDefault?: boolean;
+}): Promise<MeetingTypeForHost> {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  // Get the host's Sanity _id
+  const hostId = await client.fetch(HOST_ID_BY_CLERK_ID_QUERY, {
+    clerkId: userId,
+  });
+
+  if (!hostId) {
+    // Create user first
+    const user = await getOrCreateUser(userId);
+    const slug = generateSlug(data.name);
+
+    const meetingType = await writeClient.create({
+      _type: "meetingType",
+      name: data.name,
+      slug: { _type: "slug", current: slug },
+      duration: data.duration,
+      description: data.description,
+      isDefault: data.isDefault ?? true,
+      host: { _type: "reference", _ref: user._id },
+    });
+
+    return {
+      _id: meetingType._id,
+      name: data.name,
+      slug,
+      duration: data.duration,
+      description: data.description ?? null,
+      isDefault: data.isDefault ?? true,
+    };
+  }
+
+  const slug = generateSlug(data.name);
+
+  const meetingType = await writeClient.create({
+    _type: "meetingType",
+    name: data.name,
+    slug: { _type: "slug", current: slug },
+    duration: data.duration,
+    description: data.description,
+    isDefault: data.isDefault ?? true,
+    host: { _type: "reference", _ref: hostId },
+  });
+
+  return {
+    _id: meetingType._id,
+    name: data.name,
+    slug,
+    duration: data.duration,
+    description: data.description ?? null,
+    isDefault: data.isDefault ?? true,
+  };
+}
+
+/**
+ * Get or create the user's booking link with meeting type
+ */
+export async function getBookingLinkWithMeetingType(meetingTypeSlug: string): Promise<{
+  url: string;
+}> {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  // Ensure user has a slug
+  const { slug: userSlug } = await getOrCreateBookingLink();
+
+  const baseUrl = getBaseUrl();
+  return { url: `${baseUrl}/book/${userSlug}/${meetingTypeSlug}` };
 }

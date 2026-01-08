@@ -62,12 +62,12 @@ todos:
       - calendar-actions
   - id: public-booking-page
     content: Create public /book/[slug] page using Shadcn calendar-20 component
-    status: pending
+    status: completed
     dependencies:
       - booking-actions
   - id: bookings-page
     content: Create bookings dashboard to view upcoming/past bookings
-    status: pending
+    status: completed
     dependencies:
       - booking-actions
 ---
