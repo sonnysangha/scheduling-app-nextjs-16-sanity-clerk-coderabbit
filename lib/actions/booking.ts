@@ -259,6 +259,7 @@ export async function createBooking(
   const defaultAccount = host.connectedAccounts?.find((a) => a.isDefault);
 
   let googleEventId: string | undefined;
+  let meetLink: string | undefined;
 
   // 5. Create Google Calendar event if we have a connected account
   if (defaultAccount?.accessToken && defaultAccount?.refreshToken) {
@@ -273,6 +274,7 @@ export async function createBooking(
       const event = await calendar.events.insert({
         calendarId: "primary",
         sendUpdates: "all", // Sends email invites to attendees
+        conferenceDataVersion: 1, // Required for conference data
         requestBody: {
           summary,
           description: data.notes || undefined,
@@ -286,10 +288,21 @@ export async function createBooking(
             { email: host.email, responseStatus: "accepted" },
             { email: data.guestEmail },
           ],
+          conferenceData: {
+            createRequest: {
+              requestId: `booking-${Date.now()}-${Math.random()
+                .toString(36)
+                .substring(7)}`,
+              conferenceSolutionKey: {
+                type: "hangoutsMeet",
+              },
+            },
+          },
         },
       });
 
       googleEventId = event.data.id ?? undefined;
+      meetLink = event.data.hangoutLink ?? undefined;
     } catch (error) {
       console.error("Failed to create Google Calendar event:", error);
       // Continue without calendar event - booking still valid
@@ -308,6 +321,7 @@ export async function createBooking(
     startTime: data.startTime.toISOString(),
     endTime: data.endTime.toISOString(),
     googleEventId,
+    meetLink,
     status: "confirmed",
     notes: data.notes,
   });

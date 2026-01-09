@@ -129,20 +129,10 @@
         },
         "optional": true
       },
-      "status": {
+      "meetLink": {
         "type": "objectAttribute",
         "value": {
-          "type": "union",
-          "of": [
-            {
-              "type": "string",
-              "value": "confirmed"
-            },
-            {
-              "type": "string",
-              "value": "cancelled"
-            }
-          ]
+          "type": "string"
         },
         "optional": true
       },

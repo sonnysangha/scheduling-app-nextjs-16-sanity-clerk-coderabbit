@@ -2,7 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { format, startOfDay, isBefore } from "date-fns";
-import { Loader2, Clock, User, Mail, MessageSquare, Check } from "lucide-react";
+import {
+  Loader2,
+  Clock,
+  User,
+  Mail,
+  MessageSquare,
+  Check,
+  Globe,
+} from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createBooking } from "@/lib/actions/booking";
 
-// Pre-computed slot from server
+// Slot types
 type SerializedSlot = { start: string; end: string };
 type TimeSlot = { start: Date; end: Date };
 
@@ -21,9 +29,11 @@ interface BookingCalendarProps {
   meetingTypeSlug: string;
   meetingTypeName: string;
   duration: number;
-  // Pre-computed at server level - no client computation needed!
+  // Server pre-computes these using the visitor's timezone (from cookie)
   availableDates: string[];
   slotsByDate: Record<string, SerializedSlot[]>;
+  // Visitor's detected timezone (e.g., "America/New_York")
+  timezone: string;
 }
 
 type BookingStep = "select-time" | "enter-details" | "confirmed";
@@ -36,6 +46,7 @@ export function BookingCalendar({
   duration,
   availableDates,
   slotsByDate,
+  timezone,
 }: BookingCalendarProps) {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [month, setMonth] = useState<Date>(new Date());
@@ -70,7 +81,7 @@ export function BookingCalendar({
     }));
   };
 
-  // Get current slots (computed from server data, no fetching)
+  // Get current slots
   const availableSlots = date ? getSlotsForDate(date) : [];
 
   const handleDateSelect = (newDate: Date | undefined) => {
@@ -335,30 +346,37 @@ export function BookingCalendar({
         </div>
       </CardContent>
 
-      <CardFooter className="flex flex-col gap-4 border-t px-6 py-5 md:flex-row">
-        <div className="text-sm text-slate-600 dark:text-slate-400">
-          {date && selectedSlot ? (
-            <>
-              Selected:{" "}
-              <span className="font-medium text-slate-900 dark:text-white">
-                {format(selectedSlot.start, "EEEE, MMMM d")}
-              </span>{" "}
-              at{" "}
-              <span className="font-medium text-slate-900 dark:text-white">
-                {format(selectedSlot.start, "h:mm a")}
-              </span>
-            </>
-          ) : (
-            "Select a date and time for your meeting"
-          )}
+      <CardFooter className="flex flex-col gap-3 border-t px-6 py-5">
+        <div className="flex flex-col gap-4 w-full md:flex-row md:items-center">
+          <div className="text-sm text-slate-600 dark:text-slate-400">
+            {date && selectedSlot ? (
+              <>
+                Selected:{" "}
+                <span className="font-medium text-slate-900 dark:text-white">
+                  {format(selectedSlot.start, "EEEE, MMMM d")}
+                </span>{" "}
+                at{" "}
+                <span className="font-medium text-slate-900 dark:text-white">
+                  {format(selectedSlot.start, "h:mm a")}
+                </span>
+              </>
+            ) : (
+              "Select a date and time for your meeting"
+            )}
+          </div>
+          <Button
+            onClick={handleContinue}
+            disabled={!selectedSlot}
+            className="w-full md:ml-auto md:w-auto"
+          >
+            Continue
+          </Button>
         </div>
-        <Button
-          onClick={handleContinue}
-          disabled={!selectedSlot}
-          className="w-full md:ml-auto md:w-auto"
-        >
-          Continue
-        </Button>
+        {/* Timezone indicator */}
+        <div className="flex items-center gap-1.5 text-xs text-slate-400">
+          <Globe className="h-3 w-3" />
+          <span>Times shown in {timezone.replace(/_/g, " ")}</span>
+        </div>
       </CardFooter>
     </Card>
   );

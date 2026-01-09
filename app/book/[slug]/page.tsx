@@ -6,7 +6,13 @@ import {
   MEETING_TYPES_BY_HOST_SLUG_QUERY,
   type MeetingTypePublic,
 } from "@/sanity/queries/meetingTypes";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Clock } from "lucide-react";
 
 interface BookingPageProps {
@@ -91,7 +97,9 @@ export default async function BookingPage({ params }: BookingPageProps) {
               <Card className="transition-all hover:border-blue-500 hover:shadow-md cursor-pointer">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{meetingType.name}</CardTitle>
+                    <CardTitle className="text-lg">
+                      {meetingType.name}
+                    </CardTitle>
                     <div className="flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400">
                       <Clock className="h-4 w-4" />
                       {meetingType.duration} min

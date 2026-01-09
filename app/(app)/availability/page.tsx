@@ -43,6 +43,7 @@ export default async function AvailabilityPage() {
   const availability = user?.availability ?? [];
 
   // Fetch attendee statuses for bookings with Google events
+  // This also deletes any bookings whose Google Calendar events are cancelled/deleted
   const bookingsList = bookings ?? [];
   const attendeeStatuses = await getBookingAttendeeStatuses(
     bookingsList
@@ -54,20 +55,27 @@ export default async function AvailabilityPage() {
       })),
   );
 
-  // Transform bookings to BookedBlock format with both host and guest statuses
-  const bookedBlocks: BookedBlock[] = bookingsList.map((booking) => {
-    const statuses = attendeeStatuses[booking._id];
-    return {
-      id: booking._id,
-      start: new Date(booking.startTime),
-      end: new Date(booking.endTime),
-      guestName: booking.guestName,
-      guestEmail: booking.guestEmail,
-      googleEventId: booking.googleEventId ?? undefined,
-      attendeeStatus: statuses?.guestStatus,
-      hostStatus: statuses?.hostStatus,
-    };
-  });
+  // Transform bookings to BookedBlock format with guest status from Google Calendar
+  // Filter out cancelled bookings (Google Calendar is source of truth)
+  const bookedBlocks: BookedBlock[] = bookingsList
+    .filter((booking) => {
+      // Keep bookings without Google events or those not cancelled in Google
+      const statuses = attendeeStatuses[booking._id];
+      return !booking.googleEventId || !statuses?.isCancelled;
+    })
+    .map((booking) => {
+      const statuses = attendeeStatuses[booking._id];
+      return {
+        id: booking._id,
+        start: new Date(booking.startTime),
+        end: new Date(booking.endTime),
+        guestName: booking.guestName,
+        guestEmail: booking.guestEmail,
+        googleEventId: booking.googleEventId ?? undefined,
+        meetLink: booking.meetLink ?? undefined,
+        attendeeStatus: statuses?.guestStatus,
+      };
+    });
 
   // Transform Sanity data to TimeBlock format
   // We show the FULL availability as stored in Sanity (bookings are displayed separately as green blocks)
@@ -119,11 +127,7 @@ export default async function AvailabilityPage() {
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="inline-block w-3 h-3 bg-red-500 rounded" />
-                  Guest Declined
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 bg-purple-500 rounded" />
-                  You Declined
+                  Declined
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="inline-block w-3 h-3 bg-gray-500 rounded" />

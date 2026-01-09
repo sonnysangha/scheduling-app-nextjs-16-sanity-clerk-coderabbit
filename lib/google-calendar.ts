@@ -164,11 +164,12 @@ export async function getEventAttendeeStatus(
   }
 }
 
-// Get both host and guest attendee statuses from Google Calendar event
+// Get guest attendee status from Google Calendar event
+// Returns whether the event is cancelled/deleted
 export async function getEventAttendeeStatuses(
   account: ConnectedAccountWithTokens,
   eventId: string,
-  hostEmail: string,
+  _hostEmail: string,
   guestEmail: string
 ): Promise<{ hostStatus: AttendeeStatus; guestStatus: AttendeeStatus }> {
   try {
@@ -178,20 +179,35 @@ export async function getEventAttendeeStatuses(
       eventId,
     });
 
-    const hostAttendee = response.data.attendees?.find(
-      (a) => a.email?.toLowerCase() === hostEmail.toLowerCase()
-    );
+    // Check if event was cancelled in Google Calendar
+    if (response.data.status === "cancelled") {
+      return { hostStatus: "declined", guestStatus: "declined" };
+    }
+
+    // Event exists and is not cancelled - get guest status
     const guestAttendee = response.data.attendees?.find(
       (a) => a.email?.toLowerCase() === guestEmail.toLowerCase()
     );
 
     return {
-      hostStatus: (hostAttendee?.responseStatus as AttendeeStatus) || "unknown",
+      // Host is the organizer, so if event exists, they accepted it
+      hostStatus: "accepted",
       guestStatus:
-        (guestAttendee?.responseStatus as AttendeeStatus) || "unknown",
+        (guestAttendee?.responseStatus as AttendeeStatus) || "needsAction",
     };
-  } catch (error) {
+  } catch (error: unknown) {
+    // If event was deleted (404/410), treat as cancelled
+    // Google API returns error code in different formats
+    const gaxiosError = error as {
+      code?: number;
+      response?: { status?: number };
+    };
+    const errorCode = gaxiosError.code ?? gaxiosError.response?.status;
+    if (errorCode === 404 || errorCode === 410) {
+      return { hostStatus: "declined", guestStatus: "declined" };
+    }
     console.error("Failed to get event attendee statuses:", error);
-    return { hostStatus: "unknown", guestStatus: "unknown" };
+    // On error, assume event still exists but status unknown
+    return { hostStatus: "accepted", guestStatus: "unknown" };
   }
 }

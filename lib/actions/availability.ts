@@ -219,7 +219,9 @@ export async function createMeetingType(data: {
 /**
  * Get or create the user's booking link with meeting type
  */
-export async function getBookingLinkWithMeetingType(meetingTypeSlug: string): Promise<{
+export async function getBookingLinkWithMeetingType(
+  meetingTypeSlug: string
+): Promise<{
   url: string;
 }> {
   const { userId } = await auth();

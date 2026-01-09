@@ -5,7 +5,16 @@ import { Calendar, Views, type View } from "react-big-calendar";
 import withDragAndDrop, {
   type EventInteractionArgs,
 } from "react-big-calendar/lib/addons/dragAndDrop";
-import { Loader2, Save, Undo2, Clock, User, Mail } from "lucide-react";
+import {
+  Loader2,
+  Save,
+  Undo2,
+  Clock,
+  User,
+  Mail,
+  Video,
+  ExternalLink,
+} from "lucide-react";
 import { format, differenceInMinutes, isBefore, startOfDay } from "date-fns";
 
 import { localizer } from "../lib/localizer";
@@ -168,12 +177,8 @@ export function AvailabilityCalendar({
     isMonthView ? drillDown(block.start) : removeBlock(block.id);
   };
 
-  // Get status indicator for booking (prioritizes host declined)
+  // Get status indicator for booking based on guest response
   const getStatusIndicator = (block: BookedBlock) => {
-    // Host declined takes priority
-    if (block.hostStatus === "declined") {
-      return "⊘"; // Cancelled indicator
-    }
     switch (block.attendeeStatus) {
       case "accepted":
         return "✓";
@@ -193,16 +198,12 @@ export function AvailabilityCalendar({
     }
     if (isBookedBlock(block)) {
       const indicator = getStatusIndicator(block);
-      // Show "Host Declined" prefix when host has declined
-      if (block.hostStatus === "declined") {
-        return indicator ? `${indicator} ${block.guestName}` : block.guestName;
-      }
       return indicator ? `${indicator} ${block.guestName}` : block.guestName;
     }
     return isMonthView ? formatTimeRange(block.start, block.end) : "Available";
   };
 
-  // Style events based on type and attendee status (host declined takes priority)
+  // Style events based on type and guest attendee status
   const eventStyleGetter = (event: CalendarEvent) => {
     if (isBusyBlock(event)) {
       return {
@@ -215,20 +216,6 @@ export function AvailabilityCalendar({
       };
     }
     if (isBookedBlock(event)) {
-      // Host declined takes priority - show as cancelled (strikethrough effect)
-      if (event.hostStatus === "declined") {
-        return {
-          style: {
-            backgroundColor: "#9333ea", // Purple for host declined
-            borderColor: "#7e22ce",
-            color: "#ffffff",
-            fontWeight: 600,
-            textDecoration: "line-through",
-            opacity: 0.7,
-          },
-        };
-      }
-      // Otherwise show guest status
       switch (event.attendeeStatus) {
         case "declined":
           return {
@@ -296,15 +283,13 @@ export function AvailabilityCalendar({
             <DialogTitle className="flex items-center gap-2">
               <div
                 className={`h-3 w-3 rounded-full ${
-                  selectedBooking?.hostStatus === "declined"
-                    ? "bg-purple-500"
-                    : selectedBooking?.attendeeStatus === "declined"
-                      ? "bg-red-500"
-                      : selectedBooking?.attendeeStatus === "tentative"
-                        ? "bg-amber-500"
-                        : selectedBooking?.attendeeStatus === "accepted"
-                          ? "bg-green-600"
-                          : "bg-gray-500"
+                  selectedBooking?.attendeeStatus === "declined"
+                    ? "bg-red-500"
+                    : selectedBooking?.attendeeStatus === "tentative"
+                      ? "bg-amber-500"
+                      : selectedBooking?.attendeeStatus === "accepted"
+                        ? "bg-green-600"
+                        : "bg-gray-500"
                 }`}
               />
               Meeting Details
@@ -312,14 +297,7 @@ export function AvailabilityCalendar({
           </DialogHeader>
           {selectedBooking && (
             <div className="space-y-4 pt-2">
-              {/* Host Declined Badge - takes priority */}
-              {selectedBooking.hostStatus === "declined" && (
-                <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium bg-purple-100 text-purple-700">
-                  ⊘ You Declined This Meeting
-                </div>
-              )}
-
-              {/* Guest Status Badge - shown below or if host hasn't declined */}
+              {/* Guest Status Badge */}
               <div
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${
                   selectedBooking.attendeeStatus === "declined"
@@ -375,6 +353,23 @@ export function AvailabilityCalendar({
                   </p>
                 </div>
               </div>
+              {selectedBooking.meetLink && (
+                <div className="flex items-start gap-3">
+                  <Video className="h-5 w-5 mt-0.5 text-muted-foreground" />
+                  <div>
+                    <a
+                      href={selectedBooking.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 font-medium text-blue-600 hover:underline"
+                    >
+                      Join Google Meet
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                    <p className="text-sm text-muted-foreground">Video call</p>
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end pt-2">
                 <Button
                   variant="outline"

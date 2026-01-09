@@ -23,7 +23,8 @@ export const meetingTypeType = defineType({
         source: "name",
         maxLength: 50,
       },
-      validation: (Rule) => Rule.required().error("Slug is required for the booking URL"),
+      validation: (Rule) =>
+        Rule.required().error("Slug is required for the booking URL"),
     }),
     defineField({
       name: "duration",

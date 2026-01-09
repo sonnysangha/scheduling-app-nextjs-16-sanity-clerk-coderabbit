@@ -3,6 +3,9 @@
  *
  * All queries use `defineQuery` from `next-sanity` for TypeGen support.
  * Run `pnpm run typegen` after modifying queries to regenerate types.
+ *
+ * Note: Cancelled bookings are DELETED from Sanity (Google Calendar is source of truth).
+ * If a booking exists in Sanity, it's active.
  */
 
 import { defineQuery } from "next-sanity";
@@ -18,7 +21,6 @@ export type HostBooking =
 export const BOOKINGS_BY_HOST_QUERY = defineQuery(`*[
   _type == "booking"
   && host._ref == $hostId
-  && status == "confirmed"
 ] | order(startTime asc) {
   _id,
   _type,
@@ -26,9 +28,9 @@ export const BOOKINGS_BY_HOST_QUERY = defineQuery(`*[
   guestEmail,
   startTime,
   endTime,
-  status,
   notes,
-  googleEventId
+  googleEventId,
+  meetLink
 }`);
 
 /**
@@ -37,7 +39,6 @@ export const BOOKINGS_BY_HOST_QUERY = defineQuery(`*[
 export const BOOKINGS_IN_RANGE_QUERY = defineQuery(`*[
   _type == "booking"
   && host._ref == $hostId
-  && status == "confirmed"
   && startTime >= $startDate
   && startTime <= $endDate
 ] | order(startTime asc) {
@@ -66,9 +67,9 @@ export const BOOKING_BY_ID_QUERY = defineQuery(`*[
   guestEmail,
   startTime,
   endTime,
-  status,
   notes,
-  googleEventId
+  googleEventId,
+  meetLink
 }`);
 
 /**
@@ -107,18 +108,17 @@ export const HOST_BOOKINGS_BY_CLERK_ID_QUERY = defineQuery(`*[
   guestEmail,
   startTime,
   endTime,
-  status,
   notes,
-  googleEventId
+  googleEventId,
+  meetLink
 }`);
 
 /**
- * Get upcoming confirmed bookings for a host by Clerk ID (for calendar display)
+ * Get upcoming bookings for a host by Clerk ID (for calendar display)
  */
 export const HOST_UPCOMING_BOOKINGS_QUERY = defineQuery(`*[
   _type == "booking"
   && host->clerkId == $clerkId
-  && status == "confirmed"
   && startTime >= $startDate
 ] | order(startTime asc) {
   _id,
@@ -126,7 +126,8 @@ export const HOST_UPCOMING_BOOKINGS_QUERY = defineQuery(`*[
   guestEmail,
   startTime,
   endTime,
-  googleEventId
+  googleEventId,
+  meetLink
 }`);
 
 /**
@@ -135,7 +136,6 @@ export const HOST_UPCOMING_BOOKINGS_QUERY = defineQuery(`*[
 export const BOOKINGS_BY_HOST_SLUG_IN_RANGE_QUERY = defineQuery(`*[
   _type == "booking"
   && host->slug.current == $hostSlug
-  && status == "confirmed"
   && startTime >= $startDate
   && startTime <= $endDate
 ] | order(startTime asc) {
@@ -145,14 +145,14 @@ export const BOOKINGS_BY_HOST_SLUG_IN_RANGE_QUERY = defineQuery(`*[
 }`);
 
 /**
- * Get ALL confirmed bookings for a host by slug (for real-time booking page)
+ * Get ALL bookings for a host by slug (for real-time booking page)
  */
 export const ALL_BOOKINGS_BY_HOST_SLUG_QUERY = defineQuery(`*[
   _type == "booking"
   && host->slug.current == $hostSlug
-  && status == "confirmed"
 ] | order(startTime asc) {
   _id,
   startTime,
-  endTime
+  endTime,
+  googleEventId
 }`);

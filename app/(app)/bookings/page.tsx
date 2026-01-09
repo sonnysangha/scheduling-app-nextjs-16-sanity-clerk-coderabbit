@@ -20,6 +20,7 @@ export default async function BookingsPage() {
   const bookingsList = bookings ?? [];
 
   // Fetch attendee statuses for bookings with Google events
+  // This also deletes any bookings whose Google Calendar events are cancelled/deleted
   const attendeeStatuses = await getBookingAttendeeStatuses(
     bookingsList
       .filter((b) => b.googleEventId)
@@ -30,15 +31,20 @@ export default async function BookingsPage() {
       })),
   );
 
-  // Add statuses to bookings
-  const bookingsWithStatuses = bookingsList.map((booking) => {
-    const statuses = attendeeStatuses[booking._id];
-    return {
-      ...booking,
-      guestStatus: statuses?.guestStatus,
-      hostStatus: statuses?.hostStatus,
-    };
-  });
+  // Add statuses to bookings, filtering out cancelled ones
+  const bookingsWithStatuses = bookingsList
+    .filter((booking) => {
+      // Keep bookings without Google events or those that are not cancelled
+      const statuses = attendeeStatuses[booking._id];
+      return !booking.googleEventId || !statuses?.isCancelled;
+    })
+    .map((booking) => {
+      const statuses = attendeeStatuses[booking._id];
+      return {
+        ...booking,
+        guestStatus: statuses?.guestStatus,
+      };
+    });
 
   return (
     <main className="container mx-auto px-4 py-8 max-w-4xl">

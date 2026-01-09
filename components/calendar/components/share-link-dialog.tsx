@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Share2, Copy, Check, ExternalLink, Loader2, Plus, Clock } from "lucide-react";
+import {
+  Share2,
+  Copy,
+  Check,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Clock,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,7 +48,8 @@ const DURATION_OPTIONS: Array<{ value: MeetingDuration; label: string }> = [
 export function ShareLinkDialog() {
   const [open, setOpen] = useState(false);
   const [meetingTypes, setMeetingTypes] = useState<MeetingTypeForHost[]>([]);
-  const [selectedMeetingType, setSelectedMeetingType] = useState<MeetingTypeForHost | null>(null);
+  const [selectedMeetingType, setSelectedMeetingType] =
+    useState<MeetingTypeForHost | null>(null);
   const [bookingUrl, setBookingUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -60,7 +69,9 @@ export function ShareLinkDialog() {
           const defaultType = types.find((t) => t.isDefault) || types[0];
           if (defaultType) {
             setSelectedMeetingType(defaultType);
-            const result = await getBookingLinkWithMeetingType(defaultType.slug ?? "");
+            const result = await getBookingLinkWithMeetingType(
+              defaultType.slug ?? "",
+            );
             setBookingUrl(result.url);
           } else {
             // No meeting types, show create form
@@ -144,7 +155,8 @@ export function ShareLinkDialog() {
         <DialogHeader>
           <DialogTitle>Share Your Booking Link</DialogTitle>
           <DialogDescription>
-            Select a meeting type and share the link with anyone who wants to book time with you.
+            Select a meeting type and share the link with anyone who wants to
+            book time with you.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-4">
@@ -167,14 +179,19 @@ export function ShareLinkDialog() {
                 <Label htmlFor="meeting-duration">Duration</Label>
                 <Select
                   value={newTypeDuration.toString()}
-                  onValueChange={(v) => setNewTypeDuration(Number.parseInt(v) as MeetingDuration)}
+                  onValueChange={(v) =>
+                    setNewTypeDuration(Number.parseInt(v) as MeetingDuration)
+                  }
                 >
                   <SelectTrigger id="meeting-duration">
                     <SelectValue placeholder="Select duration" />
                   </SelectTrigger>
                   <SelectContent>
                     {DURATION_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value.toString()}>
+                      <SelectItem
+                        key={option.value}
+                        value={option.value.toString()}
+                      >
                         <span className="flex items-center gap-2">
                           <Clock className="h-3.5 w-3.5" />
                           {option.label}

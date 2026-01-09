@@ -22,7 +22,6 @@ import type { AttendeeStatus } from "@/components/calendar/types";
 
 type BookingWithStatuses = HostBooking & {
   guestStatus?: AttendeeStatus;
-  hostStatus?: AttendeeStatus;
 };
 
 interface BookingsListProps {
@@ -33,14 +32,9 @@ export function BookingsList({ bookings }: BookingsListProps) {
   const [isPending, startTransition] = useTransition();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  // Only show upcoming, confirmed bookings where neither party has declined
+  // Show upcoming confirmed bookings (cancelled ones are filtered out by query)
   const activeBookings = bookings.filter((b) => {
-    const isUpcoming = isFuture(new Date(b.startTime));
-    const isConfirmed = b.status === "confirmed";
-    const notDeclined =
-      b.guestStatus !== "declined" && b.hostStatus !== "declined";
-
-    return isUpcoming && isConfirmed && notDeclined;
+    return isFuture(new Date(b.startTime));
   });
 
   const handleCancel = (bookingId: string) => {
@@ -57,7 +51,7 @@ export function BookingsList({ bookings }: BookingsListProps) {
     });
   };
 
-  // Get status badge for guest
+  // Get status badge based on guest response from Google Calendar
   const getStatusBadge = (booking: BookingWithStatuses) => {
     if (booking.guestStatus === "accepted") {
       return (
@@ -176,14 +170,24 @@ export function BookingsList({ bookings }: BookingsListProps) {
                             </div>
                           )}
 
-                          {booking.googleEventId && (
+                          {booking.meetLink ? (
+                            <a
+                              href={booking.meetLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline"
+                            >
+                              <Video className="h-4 w-4" />
+                              Join Google Meet
+                            </a>
+                          ) : booking.googleEventId ? (
                             <div className="flex items-center gap-2">
                               <Video className="h-4 w-4 text-muted-foreground" />
                               <span className="text-sm text-muted-foreground">
                                 Synced with Google Calendar
                               </span>
                             </div>
-                          )}
+                          ) : null}
                         </div>
 
                         {/* Cancel button */}

@@ -30,10 +30,10 @@ export interface BookedBlock {
   guestName: string;
   guestEmail: string;
   googleEventId?: string;
-  /** Guest's response status */
+  /** Google Meet video conferencing link */
+  meetLink?: string;
+  /** Guest's response status from Google Calendar */
   attendeeStatus?: AttendeeStatus;
-  /** Host's response status (for when host declines their own meeting) */
-  hostStatus?: AttendeeStatus;
 }
 
 // Combined event type for the calendar

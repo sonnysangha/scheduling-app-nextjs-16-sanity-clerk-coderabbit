@@ -169,6 +169,7 @@ export async function setDefaultCalendarAccount(
 
 /**
  * Cancel a booking (Host only - requires authentication)
+ * Deletes the Google Calendar event and removes the booking from Sanity.
  */
 export async function cancelBooking(bookingId: string): Promise<void> {
   const { userId } = await auth();
@@ -183,7 +184,7 @@ export async function cancelBooking(bookingId: string): Promise<void> {
     throw new Error("Booking not found");
   }
 
-  // Cancel Google Calendar event if exists
+  // Delete Google Calendar event if exists
   if (booking.googleEventId && booking.host?.connectedAccounts) {
     const account = booking.host.connectedAccounts;
     if (account.accessToken && account.refreshToken) {
@@ -195,23 +196,24 @@ export async function cancelBooking(bookingId: string): Promise<void> {
           sendUpdates: "all", // Sends cancellation emails
         });
       } catch (error) {
-        console.error("Failed to cancel Google Calendar event:", error);
-        // Continue anyway - update booking status
+        console.error("Failed to delete Google Calendar event:", error);
+        // Continue anyway - delete booking from Sanity
       }
     }
   }
 
-  // Update booking status in Sanity
-  await writeClient.patch(bookingId).set({ status: "cancelled" }).commit();
+  // Delete booking from Sanity (Google Calendar is source of truth)
+  await writeClient.delete(bookingId);
 }
 
 export type BookingStatuses = {
   guestStatus: AttendeeStatus;
-  hostStatus: AttendeeStatus;
+  isCancelled: boolean;
 };
 
 /**
- * Get both host and guest attendee statuses for multiple bookings
+ * Get guest attendee statuses for multiple bookings from Google Calendar.
+ * Google Calendar is the sole source of truth - we don't store status in Sanity.
  */
 export async function getBookingAttendeeStatuses(
   bookings: Array<{
@@ -249,10 +251,84 @@ export async function getBookingAttendeeStatuses(
           hostEmail,
           booking.guestEmail
         );
-        statuses[booking.id] = { hostStatus, guestStatus };
+
+        // Event is cancelled if hostStatus is "declined" (event deleted/cancelled)
+        const isCancelled = hostStatus === "declined";
+        statuses[booking.id] = { guestStatus, isCancelled };
       }
     })
   );
 
   return statuses;
+}
+
+/**
+ * Check which bookings are cancelled in Google Calendar (for public booking page).
+ * Uses the host's calendar credentials to check event status.
+ * Google Calendar is the sole source of truth.
+ */
+export async function getActivebookingIds(
+  hostAccount: {
+    accessToken: string | null;
+    refreshToken: string | null;
+    expiryDate?: number | null;
+    _key: string;
+    email: string;
+  } | null,
+  bookings: Array<{
+    id: string;
+    googleEventId: string | null;
+  }>
+): Promise<Set<string>> {
+  const activeIds = new Set<string>();
+
+  // If no host account with valid tokens, assume all bookings are active (can't verify)
+  if (!hostAccount?.accessToken || !hostAccount?.refreshToken) {
+    for (const b of bookings) {
+      activeIds.add(b.id);
+    }
+    return activeIds;
+  }
+
+  const accessToken = hostAccount.accessToken;
+  const refreshToken = hostAccount.refreshToken;
+
+  // Check each booking's status in Google Calendar
+  await Promise.all(
+    bookings.map(async (booking) => {
+      if (!booking.googleEventId) {
+        // No Google event - assume active
+        activeIds.add(booking.id);
+        return;
+      }
+
+      try {
+        const { hostStatus } = await getEventAttendeeStatuses(
+          {
+            _key: hostAccount._key,
+            accessToken,
+            refreshToken,
+            expiryDate: hostAccount.expiryDate ?? null,
+            email: hostAccount.email,
+            accountId: "",
+            isDefault: true,
+          },
+          booking.googleEventId,
+          hostAccount.email,
+          "" // guest email not needed for cancellation check
+        );
+
+        // Only add to active if not cancelled
+        if (hostStatus !== "declined") {
+          activeIds.add(booking.id);
+        }
+      } catch (error) {
+        console.error(`Failed to check booking ${booking.id}:`, error);
+        // On error, assume active to avoid blocking valid slots
+        activeIds.add(booking.id);
+      }
+    })
+  );
+
+  return activeIds;
 }

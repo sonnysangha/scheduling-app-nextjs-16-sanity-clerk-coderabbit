@@ -53,17 +53,11 @@ export const bookingType = defineType({
       readOnly: true,
     }),
     defineField({
-      name: "status",
-      title: "Status",
-      type: "string",
-      options: {
-        list: [
-          { title: "Confirmed", value: "confirmed" },
-          { title: "Cancelled", value: "cancelled" },
-        ],
-        layout: "radio",
-      },
-      initialValue: "confirmed",
+      name: "meetLink",
+      title: "Google Meet Link",
+      type: "url",
+      description: "Google Meet video conferencing link",
+      readOnly: true,
     }),
     defineField({
       name: "notes",
@@ -77,11 +71,16 @@ export const bookingType = defineType({
       guestName: "guestName",
       startTime: "startTime",
       hostName: "host.name",
-      status: "status",
       meetingTypeName: "meetingType.name",
       meetingTypeDuration: "meetingType.duration",
     },
-    prepare({ guestName, startTime, hostName, status, meetingTypeName, meetingTypeDuration }) {
+    prepare({
+      guestName,
+      startTime,
+      hostName,
+      meetingTypeName,
+      meetingTypeDuration,
+    }) {
       const date = startTime
         ? new Date(startTime).toLocaleDateString("en-US", {
             weekday: "short",
@@ -97,7 +96,7 @@ export const bookingType = defineType({
 
       return {
         title: `${guestName || "Guest"} → ${hostName || "Host"}${type}`,
-        subtitle: `${date} ${duration}${status === "cancelled" ? " (Cancelled)" : ""}`,
+        subtitle: `${date} ${duration}`,
       };
     },
   },
