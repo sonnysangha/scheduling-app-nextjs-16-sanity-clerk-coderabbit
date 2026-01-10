@@ -21,7 +21,9 @@ export function AppHeader() {
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
           <Link href="/availability" className="flex items-center gap-2">
-            <span className="text-xl font-bold tracking-tight text-white">Calvero</span>
+            <span className="text-xl font-bold tracking-tight text-white">
+              Calvero
+            </span>
           </Link>
 
           <nav className="flex items-center gap-1">
@@ -37,7 +39,7 @@ export function AppHeader() {
                     "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     isActive
                       ? "bg-blue-600 text-white"
-                      : "text-blue-100 hover:bg-blue-600 hover:text-white"
+                      : "text-blue-100 hover:bg-blue-600 hover:text-white",
                   )}
                 >
                   <Icon className="size-4" />

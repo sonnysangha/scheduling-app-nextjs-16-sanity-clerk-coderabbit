@@ -232,6 +232,14 @@ export type Geopoint = {
 
 export type AllSanitySchemaTypes = Feedback | Booking | MeetingType | Slug | ConnectedAccount | AvailabilitySlot | User | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageMetadata | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityAssetSourceData | SanityImageAsset | Geopoint;
 export declare const internalGroqTypeReferenceTo: unique symbol;
+// Source: lib/actions/availability.ts
+// Variable: COUNT_USER_BOOKINGS_QUERY
+// Query: count(*[  _type == "booking"  && host->clerkId == $clerkId  && startTime >= $monthStart  && startTime < $monthEnd])
+export type COUNT_USER_BOOKINGS_QUERYResult = number;
+// Variable: HAS_CONNECTED_ACCOUNT_QUERY
+// Query: count(*[  _type == "user"  && clerkId == $clerkId  && defined(connectedAccounts)  && length(connectedAccounts) > 0]) > 0
+export type HAS_CONNECTED_ACCOUNT_QUERYResult = boolean;
+
 // Source: sanity/queries/bookings.ts
 // Variable: BOOKINGS_BY_HOST_QUERY
 // Query: *[  _type == "booking"  && host._ref == $hostId] | order(startTime asc) {  _id,  _type,  guestName,  guestEmail,  startTime,  endTime,  notes,  googleEventId,  meetLink}
@@ -510,6 +518,8 @@ export type USER_SLUG_QUERYResult = {
 import "@sanity/client";
 declare module "@sanity/client" {
   interface SanityQueries {
+    "count(*[\n  _type == \"booking\"\n  && host->clerkId == $clerkId\n  && startTime >= $monthStart\n  && startTime < $monthEnd\n])": COUNT_USER_BOOKINGS_QUERYResult;
+    "count(*[\n  _type == \"user\"\n  && clerkId == $clerkId\n  && defined(connectedAccounts)\n  && length(connectedAccounts) > 0\n]) > 0": HAS_CONNECTED_ACCOUNT_QUERYResult;
     "*[\n  _type == \"booking\"\n  && host._ref == $hostId\n] | order(startTime asc) {\n  _id,\n  _type,\n  guestName,\n  guestEmail,\n  startTime,\n  endTime,\n  notes,\n  googleEventId,\n  meetLink\n}": BOOKINGS_BY_HOST_QUERYResult;
     "*[\n  _type == \"booking\"\n  && host._ref == $hostId\n  && startTime >= $startDate\n  && startTime <= $endDate\n] | order(startTime asc) {\n  _id,\n  startTime,\n  endTime,\n  googleEventId,\n  guestEmail\n}": BOOKINGS_IN_RANGE_QUERYResult;
     "*[\n  _type == \"booking\"\n  && _id == $bookingId\n][0]{\n  _id,\n  _type,\n  host->{\n    _id,\n    name,\n    email\n  },\n  guestName,\n  guestEmail,\n  startTime,\n  endTime,\n  notes,\n  googleEventId,\n  meetLink\n}": BOOKING_BY_ID_QUERYResult;

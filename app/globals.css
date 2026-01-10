@@ -217,3 +217,15 @@
     font-size: 0.65rem;
   }
 }
+
+/* Clerk Pricing Table and Modal z-index fixes */
+.cl-pricingTableCardPeriodToggle label,
+.cl-pricingTableCardPeriodToggle span {
+  color: white;
+}
+
+/* Any div with role="dialog" from Clerk */
+div[role="dialog"],
+div[role="alertdialog"] {
+  z-index: 99999 !important;
+}

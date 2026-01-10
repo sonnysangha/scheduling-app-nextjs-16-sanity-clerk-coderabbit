@@ -2,8 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { writeClient } from "@/sanity/lib/writeClient";
-import { USER_ID_BY_CLERK_ID_QUERY } from "@/sanity/queries/users";
-import { client } from "@/sanity/lib/client";
+import { getOrCreateUser } from "@/lib/actions/availability";
 
 export async function submitFeedback(
   content: string
@@ -13,12 +12,7 @@ export async function submitFeedback(
     throw new Error("Not authenticated");
   }
 
-  const user = await client.fetch(USER_ID_BY_CLERK_ID_QUERY, {
-    clerkId: userId,
-  });
-  if (!user) {
-    throw new Error("User not found");
-  }
+  const user = await getOrCreateUser(userId);
 
   await writeClient.create({
     _type: "feedback",

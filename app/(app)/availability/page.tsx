@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/calendar";
 import { AvailabilityCalendar } from "@/components/calendar";
 import { ShareLinkDialog } from "@/components/calendar/components/share-link-dialog";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import type {
   TimeBlock,
   BusyBlock,
@@ -106,7 +107,7 @@ export default async function AvailabilityPage() {
     }));
 
   return (
-    <main className="container mx-auto px-4 py-8 max-sm:py-4">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 max-sm:py-4">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Set Your Availability</h1>
@@ -143,7 +144,10 @@ export default async function AvailabilityPage() {
             )}
           </div>
         </div>
-        <ShareLinkDialog />
+        <div className="flex gap-2">
+          <RefreshButton />
+          <ShareLinkDialog />
+        </div>
       </div>
       <AvailabilityCalendar
         initialBlocks={initialBlocks}

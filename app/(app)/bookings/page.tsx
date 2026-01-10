@@ -4,6 +4,7 @@ import { sanityFetch } from "@/sanity/lib/live";
 import { HOST_BOOKINGS_BY_CLERK_ID_QUERY } from "@/sanity/queries/bookings";
 import { getBookingAttendeeStatuses } from "@/lib/actions/calendar";
 import { BookingsList } from "@/components/bookings/bookings-list";
+import { RefreshButton } from "@/components/ui/refresh-button";
 
 export default async function BookingsPage() {
   const { userId } = await auth();
@@ -48,11 +49,14 @@ export default async function BookingsPage() {
 
   return (
     <main className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">Your Bookings</h1>
-        <p className="mt-1 text-muted-foreground">
-          View and manage your upcoming meetings.
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Your Bookings</h1>
+          <p className="mt-1 text-muted-foreground">
+            View and manage your upcoming meetings.
+          </p>
+        </div>
+        <RefreshButton />
       </div>
 
       <BookingsList bookings={bookingsWithStatuses} />

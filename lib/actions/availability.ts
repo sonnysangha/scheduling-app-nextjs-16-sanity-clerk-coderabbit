@@ -1,8 +1,11 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { startOfMonth, endOfMonth } from "date-fns";
+import { defineQuery } from "next-sanity";
 import { writeClient } from "@/sanity/lib/writeClient";
 import { client } from "@/sanity/lib/client";
+import { sanityFetch } from "@/sanity/lib/live";
 import {
   USER_ID_BY_CLERK_ID_QUERY,
   USER_SLUG_QUERY,
@@ -13,10 +16,12 @@ import {
   type MeetingTypeForHost,
 } from "@/sanity/queries/meetingTypes";
 import { generateSlug, getBaseUrl } from "@/lib/url";
+import { PLAN_LIMITS, getUserPlan } from "@/lib/features";
 import type { TimeBlock } from "@/components/calendar/types";
+import type { BookingQuotaStatus } from "@/lib/features";
 
 // Get or create user document by Clerk ID
-async function getOrCreateUser(clerkId: string) {
+export async function getOrCreateUser(clerkId: string) {
   // First try to find existing user
   const existingUser = await client.fetch(USER_ID_BY_CLERK_ID_QUERY, {
     clerkId,
@@ -143,8 +148,9 @@ export async function getMeetingTypes(): Promise<MeetingTypeForHost[]> {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-  const meetingTypes = await client.fetch(MEETING_TYPES_BY_HOST_QUERY, {
-    clerkId: userId,
+  const { data: meetingTypes } = await sanityFetch({
+    query: MEETING_TYPES_BY_HOST_QUERY,
+    params: { clerkId: userId },
   });
 
   return meetingTypes;
@@ -232,4 +238,68 @@ export async function getBookingLinkWithMeetingType(
 
   const baseUrl = getBaseUrl();
   return { url: `${baseUrl}/book/${userSlug}/${meetingTypeSlug}` };
+}
+
+const COUNT_USER_BOOKINGS_QUERY = defineQuery(`count(*[
+  _type == "booking"
+  && host->clerkId == $clerkId
+  && startTime >= $monthStart
+  && startTime < $monthEnd
+])`);
+
+/**
+ * Get the current user's booking quota status
+ */
+export async function getBookingQuota(): Promise<BookingQuotaStatus> {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return {
+      used: 0,
+      limit: 0,
+      remaining: 0,
+      isExceeded: true,
+      plan: "free",
+    };
+  }
+
+  const plan = await getUserPlan();
+  const limit = PLAN_LIMITS[plan].maxBookingsPerMonth;
+
+  // Count bookings this month
+  const now = new Date();
+  const monthStart = startOfMonth(now).toISOString();
+  const monthEnd = endOfMonth(now).toISOString();
+
+  const { data: used } = await sanityFetch({
+    query: COUNT_USER_BOOKINGS_QUERY,
+    params: { clerkId: userId, monthStart, monthEnd },
+  });
+
+  const remaining = limit === Infinity ? Infinity : Math.max(0, limit - used);
+  const isExceeded = limit !== Infinity && used >= limit;
+
+  return { used, limit, remaining, isExceeded, plan };
+}
+
+const HAS_CONNECTED_ACCOUNT_QUERY = defineQuery(`count(*[
+  _type == "user"
+  && clerkId == $clerkId
+  && defined(connectedAccounts)
+  && length(connectedAccounts) > 0
+]) > 0`);
+
+/**
+ * Check if the current user has at least one connected Google account
+ */
+export async function hasConnectedAccount(): Promise<boolean> {
+  const { userId } = await auth();
+  if (!userId) return false;
+
+  const { data } = await sanityFetch({
+    query: HAS_CONNECTED_ACCOUNT_QUERY,
+    params: { clerkId: userId },
+  });
+
+  return data;
 }

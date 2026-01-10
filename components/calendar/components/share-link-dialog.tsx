@@ -9,6 +9,8 @@ import {
   Loader2,
   Plus,
   Clock,
+  CalendarDays,
+  AlertCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -32,8 +34,12 @@ import {
   getMeetingTypes,
   createMeetingType,
   getBookingLinkWithMeetingType,
+  getBookingQuota,
+  hasConnectedAccount,
 } from "@/lib/actions/availability";
 import type { MeetingTypeForHost } from "@/sanity/queries/meetingTypes";
+import type { BookingQuotaStatus } from "@/lib/features";
+import Link from "next/link";
 
 type MeetingDuration = 15 | 30 | 45 | 60 | 90;
 
@@ -56,14 +62,28 @@ export function ShareLinkDialog() {
   const [isCreatingType, setIsCreatingType] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypeDuration, setNewTypeDuration] = useState<MeetingDuration>(30);
+  const [quota, setQuota] = useState<BookingQuotaStatus | null>(null);
+  const [hasAccount, setHasAccount] = useState<boolean | null>(null);
 
   const handleOpen = (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen) {
       startTransition(async () => {
         try {
-          const types = await getMeetingTypes();
+          // Fetch meeting types, quota, and account status in parallel
+          const [types, quotaStatus, accountConnected] = await Promise.all([
+            getMeetingTypes(),
+            getBookingQuota(),
+            hasConnectedAccount(),
+          ]);
           setMeetingTypes(types);
+          setQuota(quotaStatus);
+          setHasAccount(accountConnected);
+
+          // If no connected account, don't proceed with booking URL
+          if (!accountConnected) {
+            return;
+          }
 
           // Auto-select default or first meeting type
           const defaultType = types.find((t) => t.isDefault) || types[0];
@@ -159,7 +179,36 @@ export function ShareLinkDialog() {
             book time with you.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 pt-4">
+
+        {/* Booking Quota Display */}
+        {quota && (
+          <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3">
+            <CalendarDays className="h-5 w-5 text-muted-foreground" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                {quota.limit === Infinity ? (
+                  "Unlimited bookings"
+                ) : (
+                  <>
+                    {quota.remaining} of {quota.limit} bookings left
+                  </>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {quota.limit === Infinity
+                  ? `${quota.used} received this month`
+                  : `${quota.used} used this month · ${quota.plan} plan`}
+              </p>
+            </div>
+            {quota.limit !== Infinity && quota.remaining <= 1 && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                {quota.remaining === 0 ? "Limit reached" : "Almost full"}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-4">
           {isPending && !selectedMeetingType && !isCreatingType ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
