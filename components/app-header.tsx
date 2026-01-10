@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
-import { Calendar, CalendarCheck, Settings } from "lucide-react";
+import { Calendar, CalendarCheck, MessageSquare, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/availability", label: "Availability", icon: Calendar },
   { href: "/bookings", label: "Bookings", icon: CalendarCheck },
+  { href: "/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -20,7 +21,7 @@ export function AppHeader() {
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
           <Link href="/availability" className="flex items-center gap-2">
-            <span className="text-xl font-bold tracking-tight text-white">Scheduly</span>
+            <span className="text-xl font-bold tracking-tight text-white">Calvero</span>
           </Link>
 
           <nav className="flex items-center gap-1">

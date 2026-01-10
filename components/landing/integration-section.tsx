@@ -39,7 +39,7 @@ export function IntegrationSection() {
               Seamless Google Calendar integration
             </h2>
             <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
-              Connect multiple Google accounts and let Scheduly do the heavy
+              Connect multiple Google accounts and let Calvero do the heavy
               lifting. Your busy times are automatically blocked, and new
               bookings create calendar events with video links.
             </p>

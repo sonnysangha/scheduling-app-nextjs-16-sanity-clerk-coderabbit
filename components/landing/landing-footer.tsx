@@ -12,7 +12,7 @@ export function LandingFooter() {
                 <Calendar className="size-4 text-white" />
               </div>
               <span className="font-bold text-zinc-900 dark:text-white">
-                Scheduly
+                Calvero
               </span>
             </Link>
             <Link

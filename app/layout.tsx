@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Scheduling Clone",
+  title: "Calvero",
   description: "Schedule meetings effortlessly",
 };
 

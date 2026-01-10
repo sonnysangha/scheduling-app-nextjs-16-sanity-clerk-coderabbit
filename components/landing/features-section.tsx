@@ -13,7 +13,7 @@ const features = [
     icon: Calendar,
     title: "Smart Availability",
     description:
-      "Set your availability with an intuitive drag-and-drop calendar. Create time blocks visually and let Scheduly handle the rest.",
+      "Set your availability with an intuitive drag-and-drop calendar. Create time blocks visually and let Calvero handle the rest.",
   },
   {
     icon: Video,

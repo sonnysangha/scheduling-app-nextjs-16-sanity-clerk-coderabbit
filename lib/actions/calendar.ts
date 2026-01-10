@@ -3,7 +3,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { writeClient } from "@/sanity/lib/writeClient";
 import { client } from "@/sanity/lib/client";
-import { USER_WITH_TOKENS_QUERY } from "@/sanity/queries/users";
+import {
+  USER_WITH_TOKENS_QUERY,
+  type ConnectedAccountWithTokens,
+} from "@/sanity/queries/users";
 import { BOOKING_WITH_HOST_CALENDAR_QUERY } from "@/sanity/queries/bookings";
 import {
   getCalendarClient,
@@ -20,11 +23,23 @@ export type BusySlot = {
   start: string;
   end: string;
   accountEmail: string;
+  title: string;
 };
 
 // ============================================================================
 // Host Actions (Authenticated)
 // ============================================================================
+
+/**
+ * Get the count of connected calendar accounts for the current user
+ */
+export async function getUserConnectedAccountsCount(): Promise<number> {
+  const { userId } = await auth();
+  if (!userId) return 0;
+
+  const user = await client.fetch(USER_WITH_TOKENS_QUERY, { clerkId: userId });
+  return user?.connectedAccounts?.length ?? 0;
+}
 
 /**
  * Fetch busy times from all connected Google Calendars
@@ -72,6 +87,7 @@ export async function getGoogleBusyTimes(
           start: event.start.dateTime,
           end: event.end.dateTime,
           accountEmail: account.email,
+          title: event.summary ?? "Busy",
         });
       }
     } catch (error) {
@@ -212,6 +228,38 @@ export type BookingStatuses = {
 };
 
 /**
+ * Clean up a cancelled booking by deleting the Google Calendar event and Sanity document.
+ * Used for lazy deletion when we detect a booking has been cancelled.
+ */
+async function cleanupCancelledBooking(
+  account: ConnectedAccountWithTokens,
+  bookingId: string,
+  googleEventId: string,
+  eventStillExists: boolean
+): Promise<void> {
+  // Delete Google Calendar event if it still exists
+  if (eventStillExists && account.accessToken && account.refreshToken) {
+    try {
+      const calendar = await getCalendarClient(account);
+      await calendar.events.delete({
+        calendarId: "primary",
+        eventId: googleEventId,
+        sendUpdates: "all",
+      });
+    } catch (error) {
+      console.error("Failed to delete Google Calendar event:", error);
+    }
+  }
+
+  // Delete booking from Sanity
+  try {
+    await writeClient.delete(bookingId);
+  } catch (error) {
+    console.error("Failed to delete booking from Sanity:", error);
+  }
+}
+
+/**
  * Get guest attendee statuses for multiple bookings from Google Calendar.
  * Google Calendar is the sole source of truth - we don't store status in Sanity.
  */
@@ -252,9 +300,19 @@ export async function getBookingAttendeeStatuses(
           booking.guestEmail
         );
 
-        // Event is cancelled if hostStatus is "declined" (event deleted/cancelled)
-        const isCancelled = hostStatus === "declined";
+        // Event is cancelled if deleted OR guest declined (no meeting will happen)
+        const isCancelled = hostStatus === "declined" || guestStatus === "declined";
         statuses[booking.id] = { guestStatus, isCancelled };
+
+        // Lazy delete: If cancelled, clean up Google Calendar event and Sanity booking
+        if (isCancelled) {
+          await cleanupCancelledBooking(
+            account,
+            booking.id,
+            booking.googleEventId,
+            hostStatus !== "declined"
+          );
+        }
       }
     })
   );
@@ -278,6 +336,7 @@ export async function getActivebookingIds(
   bookings: Array<{
     id: string;
     googleEventId: string | null;
+    guestEmail: string;
   }>
 ): Promise<Set<string>> {
   const activeIds = new Set<string>();
@@ -303,23 +362,35 @@ export async function getActivebookingIds(
       }
 
       try {
-        const { hostStatus } = await getEventAttendeeStatuses(
-          {
-            _key: hostAccount._key,
-            accessToken,
-            refreshToken,
-            expiryDate: hostAccount.expiryDate ?? null,
-            email: hostAccount.email,
-            accountId: "",
-            isDefault: true,
-          },
+        const account = {
+          _key: hostAccount._key,
+          accessToken,
+          refreshToken,
+          expiryDate: hostAccount.expiryDate ?? null,
+          email: hostAccount.email,
+          accountId: "",
+          isDefault: true,
+        };
+
+        const { hostStatus, guestStatus } = await getEventAttendeeStatuses(
+          account,
           booking.googleEventId,
           hostAccount.email,
-          "" // guest email not needed for cancellation check
+          booking.guestEmail
         );
 
-        // Only add to active if not cancelled
-        if (hostStatus !== "declined") {
+        const isCancelled = hostStatus === "declined" || guestStatus === "declined";
+
+        // Lazy delete: If cancelled, clean up Google Calendar event and Sanity booking
+        if (isCancelled) {
+          await cleanupCancelledBooking(
+            account,
+            booking.id,
+            booking.googleEventId,
+            hostStatus !== "declined"
+          );
+        } else {
+          // Only add to active if not cancelled
           activeIds.add(booking.id);
         }
       } catch (error) {

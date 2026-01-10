@@ -13,7 +13,7 @@ export function LandingHeader() {
               <Calendar className="size-5 text-white" />
             </div>
             <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Scheduly
+              Calvero
             </span>
           </Link>
           <Link

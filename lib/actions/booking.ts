@@ -12,6 +12,7 @@ import {
   getCalendarClient,
   getEventAttendeeStatus,
 } from "@/lib/google-calendar";
+import { getHostBookingQuotaStatus } from "@/lib/features";
 import {
   startOfDay,
   endOfDay,
@@ -123,7 +124,7 @@ export async function getAvailableSlots(
   );
 
   // 5. Get Google Calendar busy times
-  const busyTimes = await getHostGoogleBusyTimes(host, dayStart, dayEnd);
+  const busyTimes = await getGoogleBusyTimes(host.connectedAccounts, dayStart, dayEnd);
 
   // 6. Generate time slots from availability
   const allSlots: TimeSlot[] = [];
@@ -197,7 +198,7 @@ export async function getAvailableDates(
   // 3. Get Google Calendar busy times (if available)
   let busyTimes: Array<{ start: Date; end: Date }> = [];
   try {
-    busyTimes = await getHostGoogleBusyTimes(host, startDate, endDate);
+    busyTimes = await getGoogleBusyTimes(host.connectedAccounts, startDate, endDate);
   } catch {
     // Continue without busy times if fetch fails
   }
@@ -228,7 +229,13 @@ export async function createBooking(
     throw new Error("Host not found");
   }
 
-  // 2. Get the meeting type if provided
+  // 2. Check if host has exceeded their monthly booking quota
+  const quotaStatus = await getHostBookingQuotaStatus(data.hostSlug);
+  if (quotaStatus.isExceeded) {
+    throw new Error("Host has reached their monthly booking limit");
+  }
+
+  // 3. Get the meeting type if provided
   let meetingTypeId: string | undefined;
   let meetingTypeName: string | undefined;
 
@@ -244,7 +251,7 @@ export async function createBooking(
     }
   }
 
-  // 3. Verify slot is still available (prevent race conditions)
+  // 4. Verify slot is still available (prevent race conditions)
   const isAvailable = await checkSlotAvailable(
     host,
     data.startTime,
@@ -255,13 +262,13 @@ export async function createBooking(
     throw new Error("This time slot is no longer available");
   }
 
-  // 4. Find the default connected account for creating calendar events
+  // 5. Find the default connected account for creating calendar events
   const defaultAccount = host.connectedAccounts?.find((a) => a.isDefault);
 
   let googleEventId: string | undefined;
   let meetLink: string | undefined;
 
-  // 5. Create Google Calendar event if we have a connected account
+  // 6. Create Google Calendar event if we have a connected account
   if (defaultAccount?.accessToken && defaultAccount?.refreshToken) {
     try {
       const calendar = await getCalendarClient(defaultAccount);
@@ -309,7 +316,7 @@ export async function createBooking(
     }
   }
 
-  // 6. Create booking in Sanity
+  // 7. Create booking in Sanity
   const booking = await writeClient.create({
     _type: "booking",
     host: { _type: "reference", _ref: host._id },
@@ -334,23 +341,20 @@ export async function createBooking(
 // ============================================================================
 
 /**
- * Get Google Calendar busy times for a host
+ * Get Google Calendar busy times from connected accounts
  */
-async function getHostGoogleBusyTimes(
-  host: HostWithTokens,
+export async function getGoogleBusyTimes(
+  connectedAccounts: HostWithTokens["connectedAccounts"],
   startDate: Date,
   endDate: Date
 ): Promise<Array<{ start: Date; end: Date }>> {
   const busyTimes: Array<{ start: Date; end: Date }> = [];
 
-  for (const account of host.connectedAccounts ?? []) {
-    if (!account.accessToken || !account.refreshToken) {
-      continue;
-    }
+  for (const account of connectedAccounts ?? []) {
+    if (!account.accessToken || !account.refreshToken) continue;
 
     try {
       const calendar = await getCalendarClient(account);
-
       const { data } = await calendar.events.list({
         calendarId: "primary",
         timeMin: startDate.toISOString(),
@@ -360,10 +364,7 @@ async function getHostGoogleBusyTimes(
       });
 
       for (const event of data.items ?? []) {
-        if (!event.start?.dateTime || !event.end?.dateTime) {
-          continue;
-        }
-
+        if (!event.start?.dateTime || !event.end?.dateTime) continue;
         busyTimes.push({
           start: parseISO(event.start.dateTime),
           end: parseISO(event.end.dateTime),

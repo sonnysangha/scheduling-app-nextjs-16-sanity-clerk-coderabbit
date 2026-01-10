@@ -19,7 +19,7 @@ export function HeroSection() {
             <span className="text-blue-500">without the back-and-forth</span>
           </h1>
           <p className="mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Scheduly connects to your Google Calendar, shows your real-time
+            Calvero connects to your Google Calendar, shows your real-time
             availability, and lets anyone book time with you instantly. No
             more &quot;what time works for you?&quot; emails.
           </p>

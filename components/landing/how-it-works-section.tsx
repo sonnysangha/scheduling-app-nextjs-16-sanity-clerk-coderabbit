@@ -31,7 +31,7 @@ export function HowItWorksSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
-            How Scheduly works
+            How Calvero works
           </h2>
           <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
             Get up and running in minutes. No complicated setup required.

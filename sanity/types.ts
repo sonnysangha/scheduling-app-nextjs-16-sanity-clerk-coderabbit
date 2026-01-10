@@ -13,6 +13,23 @@
  */
 
 // Source: schema.json
+export type Feedback = {
+  _id: string;
+  _type: "feedback";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  user: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+  content: string;
+  createdAt: string;
+  archived?: boolean;
+};
+
 export type Booking = {
   _id: string;
   _type: "booking";
@@ -213,7 +230,7 @@ export type Geopoint = {
   alt?: number;
 };
 
-export type AllSanitySchemaTypes = Booking | MeetingType | Slug | ConnectedAccount | AvailabilitySlot | User | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageMetadata | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityAssetSourceData | SanityImageAsset | Geopoint;
+export type AllSanitySchemaTypes = Feedback | Booking | MeetingType | Slug | ConnectedAccount | AvailabilitySlot | User | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageMetadata | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityAssetSourceData | SanityImageAsset | Geopoint;
 export declare const internalGroqTypeReferenceTo: unique symbol;
 // Source: sanity/queries/bookings.ts
 // Variable: BOOKINGS_BY_HOST_QUERY
@@ -306,12 +323,13 @@ export type BOOKINGS_BY_HOST_SLUG_IN_RANGE_QUERYResult = Array<{
   endTime: string;
 }>;
 // Variable: ALL_BOOKINGS_BY_HOST_SLUG_QUERY
-// Query: *[  _type == "booking"  && host->slug.current == $hostSlug] | order(startTime asc) {  _id,  startTime,  endTime,  googleEventId}
+// Query: *[  _type == "booking"  && host->slug.current == $hostSlug] | order(startTime asc) {  _id,  startTime,  endTime,  googleEventId,  guestEmail}
 export type ALL_BOOKINGS_BY_HOST_SLUG_QUERYResult = Array<{
   _id: string;
   startTime: string;
   endTime: string;
   googleEventId: string | null;
+  guestEmail: string;
 }>;
 
 // Source: sanity/queries/meetingTypes.ts
@@ -499,7 +517,7 @@ declare module "@sanity/client" {
     "*[\n  _type == \"booking\"\n  && host->clerkId == $clerkId\n] | order(startTime desc) {\n  _id,\n  _type,\n  guestName,\n  guestEmail,\n  startTime,\n  endTime,\n  notes,\n  googleEventId,\n  meetLink\n}": HOST_BOOKINGS_BY_CLERK_ID_QUERYResult;
     "*[\n  _type == \"booking\"\n  && host->clerkId == $clerkId\n  && startTime >= $startDate\n] | order(startTime asc) {\n  _id,\n  guestName,\n  guestEmail,\n  startTime,\n  endTime,\n  googleEventId,\n  meetLink\n}": HOST_UPCOMING_BOOKINGS_QUERYResult;
     "*[\n  _type == \"booking\"\n  && host->slug.current == $hostSlug\n  && startTime >= $startDate\n  && startTime <= $endDate\n] | order(startTime asc) {\n  _id,\n  startTime,\n  endTime\n}": BOOKINGS_BY_HOST_SLUG_IN_RANGE_QUERYResult;
-    "*[\n  _type == \"booking\"\n  && host->slug.current == $hostSlug\n] | order(startTime asc) {\n  _id,\n  startTime,\n  endTime,\n  googleEventId\n}": ALL_BOOKINGS_BY_HOST_SLUG_QUERYResult;
+    "*[\n  _type == \"booking\"\n  && host->slug.current == $hostSlug\n] | order(startTime asc) {\n  _id,\n  startTime,\n  endTime,\n  googleEventId,\n  guestEmail\n}": ALL_BOOKINGS_BY_HOST_SLUG_QUERYResult;
     "*[\n  _type == \"meetingType\"\n  && host->clerkId == $clerkId\n] | order(isDefault desc, name asc) {\n  _id,\n  name,\n  \"slug\": slug.current,\n  duration,\n  description,\n  isDefault\n}": MEETING_TYPES_BY_HOST_QUERYResult;
     "*[\n  _type == \"meetingType\"\n  && host->slug.current == $hostSlug\n  && slug.current == $meetingTypeSlug\n][0] {\n  _id,\n  name,\n  \"slug\": slug.current,\n  duration,\n  description,\n  host-> {\n    _id,\n    name,\n    email,\n    \"slug\": slug.current,\n    availability[] {\n      _key,\n      startDateTime,\n      endDateTime\n    },\n    connectedAccounts[] {\n      _key,\n      accountId,\n      email,\n      isDefault,\n      accessToken,\n      refreshToken,\n      expiryDate\n    }\n  }\n}": MEETING_TYPE_BY_SLUGS_QUERYResult;
     "*[\n  _type == \"meetingType\"\n  && host->slug.current == $hostSlug\n] | order(isDefault desc, name asc) {\n  _id,\n  name,\n  \"slug\": slug.current,\n  duration,\n  description,\n  isDefault\n}": MEETING_TYPES_BY_HOST_SLUG_QUERYResult;

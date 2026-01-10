@@ -5,6 +5,7 @@ import { CreditCard } from "lucide-react";
 import { sanityFetch } from "@/sanity/lib/live";
 import { USER_CONNECTED_ACCOUNTS_DISPLAY_QUERY } from "@/sanity/queries/users";
 import { AccountManager } from "@/components/settings/account-manager";
+import { getUserPlanLimits } from "@/lib/features";
 
 export default async function SettingsPage({
   searchParams,
@@ -17,10 +18,13 @@ export default async function SettingsPage({
     redirect("/");
   }
 
-  const { data: user } = await sanityFetch({
-    query: USER_CONNECTED_ACCOUNTS_DISPLAY_QUERY,
-    params: { clerkId: userId },
-  });
+  const [{ data: user }, planLimits] = await Promise.all([
+    sanityFetch({
+      query: USER_CONNECTED_ACCOUNTS_DISPLAY_QUERY,
+      params: { clerkId: userId },
+    }),
+    getUserPlanLimits(),
+  ]);
 
   const connectedAccounts = user?.connectedAccounts ?? [];
   const params = await searchParams;
@@ -59,7 +63,11 @@ export default async function SettingsPage({
         </div>
       )}
 
-      <AccountManager connectedAccounts={connectedAccounts} />
+      <AccountManager
+        connectedAccounts={connectedAccounts}
+        maxCalendars={planLimits.maxConnectedCalendars}
+        plan={planLimits.plan}
+      />
 
       {/* Billing Section */}
       <div className="mt-8 pt-8 border-t">

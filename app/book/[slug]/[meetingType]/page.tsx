@@ -4,11 +4,14 @@ import { sanityFetch } from "@/sanity/lib/live";
 import { MEETING_TYPE_BY_SLUGS_QUERY } from "@/sanity/queries/meetingTypes";
 import { ALL_BOOKINGS_BY_HOST_SLUG_QUERY } from "@/sanity/queries/bookings";
 import { BookingCalendar } from "@/components/booking/booking-calendar";
+import { QuotaExceeded } from "@/components/booking/quota-exceeded";
 import {
   computeAvailableDates,
   computeAvailableSlots,
 } from "@/lib/availability";
 import { getActivebookingIds } from "@/lib/actions/calendar";
+import { getGoogleBusyTimes } from "@/lib/actions/booking";
+import { getHostBookingQuotaStatus } from "@/lib/features";
 import { Clock } from "lucide-react";
 import { startOfDay, parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
@@ -21,6 +24,14 @@ export default async function MeetingTypeBookingPage({
   params,
 }: BookingPageProps) {
   const { slug, meetingType } = await params;
+
+  // ============================================================================
+  // BOOKING QUOTA CHECK
+  // ============================================================================
+  // Check if the host has exceeded their monthly booking limit.
+  // If so, show a friendly message instead of the booking calendar.
+  // ============================================================================
+  const quotaStatus = await getHostBookingQuotaStatus(slug);
 
   // ============================================================================
   // TIMEZONE-AWARE DATE GROUPING
@@ -56,6 +67,12 @@ export default async function MeetingTypeBookingPage({
   }
 
   const host = meetingTypeData.host;
+
+  // If host has exceeded their monthly booking quota, show the quota exceeded page
+  if (quotaStatus.isExceeded) {
+    return <QuotaExceeded hostName={host.name ?? "This host"} />;
+  }
+
   const duration = meetingTypeData.duration ?? 30;
   const availability = host.availability ?? [];
   const allBookingsRaw = bookings ?? [];
@@ -74,22 +91,21 @@ export default async function MeetingTypeBookingPage({
           email: hostAccount.email,
           accessToken: hostAccount.accessToken,
           refreshToken: hostAccount.refreshToken,
-          expiryDate: null, // Not available in this query
+          expiryDate: hostAccount.expiryDate,
         }
       : null,
-    allBookingsRaw.map((b) => ({ id: b._id, googleEventId: b.googleEventId })),
+    allBookingsRaw.map((b) => ({ id: b._id, googleEventId: b.googleEventId, guestEmail: b.guestEmail })),
   );
 
   // Only include active bookings (not cancelled in Google Calendar)
   const allBookings = allBookingsRaw.filter((b) => activeBookingIds.has(b._id));
 
   // ============================================================================
-  // SERVER-SIDE SLOT COMPUTATION
+  // FETCH GOOGLE CALENDAR BUSY TIMES
   // ============================================================================
-  // Slots are computed server-side and grouped by date using the VISITOR'S
-  // timezone (from cookie). This ensures correct calendar day display.
+  // Block time slots that overlap with existing Google Calendar events.
+  // This prevents double-booking when the host has other meetings.
   // ============================================================================
-
   const today = startOfDay(new Date());
 
   // Find the latest availability block end date
@@ -98,6 +114,20 @@ export default async function MeetingTypeBookingPage({
     return slotEnd > latest ? slotEnd : latest;
   }, today);
 
+  // Fetch busy times from all connected Google Calendar accounts
+  const busyTimes = await getGoogleBusyTimes(
+    host.connectedAccounts,
+    today,
+    latestEndDate
+  );
+
+  // ============================================================================
+  // SERVER-SIDE SLOT COMPUTATION
+  // ============================================================================
+  // Slots are computed server-side and grouped by date using the VISITOR'S
+  // timezone (from cookie). This ensures correct calendar day display.
+  // ============================================================================
+
   // Compute available dates (for iteration only)
   const serverDates = computeAvailableDates(
     availability,
@@ -105,6 +135,7 @@ export default async function MeetingTypeBookingPage({
     today,
     latestEndDate,
     duration,
+    busyTimes,
   );
 
   // Compute all slots and group by date in VISITOR'S TIMEZONE
@@ -117,6 +148,7 @@ export default async function MeetingTypeBookingPage({
       allBookings,
       date,
       duration,
+      busyTimes,
     );
 
     // Group each slot by its date in the VISITOR'S timezone

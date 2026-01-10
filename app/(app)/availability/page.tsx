@@ -101,7 +101,7 @@ export default async function AvailabilityPage() {
       id: `busy-${index}`,
       start: new Date(busy.start),
       end: new Date(busy.end),
-      title: "Busy",
+      title: busy.title,
       accountEmail: busy.accountEmail,
     }));
 

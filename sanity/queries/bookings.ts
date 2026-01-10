@@ -154,5 +154,6 @@ export const ALL_BOOKINGS_BY_HOST_SLUG_QUERY = defineQuery(`*[
   _id,
   startTime,
   endTime,
-  googleEventId
+  googleEventId,
+  guestEmail
 }`);
