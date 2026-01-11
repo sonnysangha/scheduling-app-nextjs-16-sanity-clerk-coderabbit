@@ -12,7 +12,7 @@ import {
 import { getActivebookingIds } from "@/lib/actions/calendar";
 import { getGoogleBusyTimes } from "@/lib/actions/booking";
 import { getHostBookingQuotaStatus } from "@/lib/features";
-import { Clock } from "lucide-react";
+import { HostHeader } from "@/components/booking/host-header";
 import { startOfDay, parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 
@@ -94,7 +94,11 @@ export default async function MeetingTypeBookingPage({
           expiryDate: hostAccount.expiryDate,
         }
       : null,
-    allBookingsRaw.map((b) => ({ id: b._id, googleEventId: b.googleEventId, guestEmail: b.guestEmail })),
+    allBookingsRaw.map((b) => ({
+      id: b._id,
+      googleEventId: b.googleEventId,
+      guestEmail: b.guestEmail,
+    })),
   );
 
   // Only include active bookings (not cancelled in Google Calendar)
@@ -118,7 +122,7 @@ export default async function MeetingTypeBookingPage({
   const busyTimes = await getGoogleBusyTimes(
     host.connectedAccounts,
     today,
-    latestEndDate
+    latestEndDate,
   );
 
   // ============================================================================
@@ -177,31 +181,14 @@ export default async function MeetingTypeBookingPage({
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="container mx-auto px-4 py-12 max-w-4xl">
-        {/* Host Info Header */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-purple-600 text-2xl font-bold text-white mb-4">
-            {host.name?.charAt(0)?.toUpperCase() || "?"}
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            {meetingTypeData.name}
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            with {host.name}
-          </p>
-
-          {/* Duration badge */}
-          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 px-3 py-1 text-sm font-medium text-blue-700 dark:text-blue-300">
-            <Clock className="h-3.5 w-3.5" />
-            {meetingTypeData.duration} minutes
-          </div>
-
-          {/* Description */}
-          {meetingTypeData.description && (
-            <p className="mt-4 text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
-              {meetingTypeData.description}
-            </p>
-          )}
-        </div>
+        <HostHeader
+          hostName={host.name}
+          meetingType={{
+            name: meetingTypeData.name,
+            duration: meetingTypeData.duration ?? 30,
+            description: meetingTypeData.description,
+          }}
+        />
 
         {/* Booking Calendar - receives slots pre-grouped by visitor's timezone */}
         <BookingCalendar

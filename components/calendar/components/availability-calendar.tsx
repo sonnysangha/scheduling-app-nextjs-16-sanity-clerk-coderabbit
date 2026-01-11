@@ -18,7 +18,14 @@ import {
 import { format, differenceInMinutes, isBefore, startOfDay } from "date-fns";
 
 import { localizer } from "../lib/localizer";
-import { CALENDAR_CONFIG, MAX_TIME, MIN_TIME } from "../lib/constants";
+import {
+  CALENDAR_CONFIG,
+  MAX_TIME,
+  MIN_TIME,
+  AVAILABILITY_COLORS,
+  BUSY_BLOCK_COLORS,
+  BOOKING_STATUS_COLORS,
+} from "../lib/constants";
 import {
   calendarFormats,
   calendarMessages,
@@ -126,7 +133,7 @@ export function AvailabilityCalendar({
     if (isBefore(date, now)) {
       return {
         style: {
-          backgroundColor: "#f3f4f6",
+          backgroundColor: AVAILABILITY_COLORS.background,
           cursor: "not-allowed",
         },
       };
@@ -139,7 +146,7 @@ export function AvailabilityCalendar({
     if (isBefore(date, todayStart)) {
       return {
         style: {
-          backgroundColor: "#f9fafb",
+          backgroundColor: AVAILABILITY_COLORS.backgroundHover,
         },
       };
     }
@@ -208,52 +215,28 @@ export function AvailabilityCalendar({
     if (isBusyBlock(event)) {
       return {
         style: {
-          backgroundColor: "#fecaca",
-          borderColor: "#f87171",
-          color: "#991b1b",
+          backgroundColor: BUSY_BLOCK_COLORS.background,
+          borderColor: BUSY_BLOCK_COLORS.border,
+          color: BUSY_BLOCK_COLORS.text,
           opacity: 0.8,
         },
       };
     }
     if (isBookedBlock(event)) {
-      switch (event.attendeeStatus) {
-        case "declined":
-          return {
-            style: {
-              backgroundColor: "#ef4444",
-              borderColor: "#dc2626",
-              color: "#ffffff",
-              fontWeight: 600,
-            },
-          };
-        case "tentative":
-          return {
-            style: {
-              backgroundColor: "#f59e0b",
-              borderColor: "#d97706",
-              color: "#ffffff",
-              fontWeight: 600,
-            },
-          };
-        case "accepted":
-          return {
-            style: {
-              backgroundColor: "#16a34a",
-              borderColor: "#15803d",
-              color: "#ffffff",
-              fontWeight: 600,
-            },
-          };
-        default:
-          return {
-            style: {
-              backgroundColor: "#6b7280",
-              borderColor: "#4b5563",
-              color: "#ffffff",
-              fontWeight: 600,
-            },
-          };
-      }
+      const statusColors =
+        event.attendeeStatus && event.attendeeStatus in BOOKING_STATUS_COLORS
+          ? BOOKING_STATUS_COLORS[
+              event.attendeeStatus as keyof typeof BOOKING_STATUS_COLORS
+            ]
+          : BOOKING_STATUS_COLORS.default;
+      return {
+        style: {
+          backgroundColor: statusColors.background,
+          borderColor: statusColors.border,
+          color: statusColors.text,
+          fontWeight: 600,
+        },
+      };
     }
     return {};
   };

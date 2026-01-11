@@ -4,10 +4,8 @@ import { startOfWeek, addWeeks } from "date-fns";
 import { sanityFetch } from "@/sanity/lib/live";
 import { USER_WITH_AVAILABILITY_QUERY } from "@/sanity/queries/users";
 import { HOST_UPCOMING_BOOKINGS_QUERY } from "@/sanity/queries/bookings";
-import {
-  getGoogleBusyTimes,
-  getBookingAttendeeStatuses,
-} from "@/lib/actions/calendar";
+import { getGoogleBusyTimes } from "@/lib/actions/calendar";
+import { processBookingsWithStatuses } from "@/lib/booking-utils";
 import { AvailabilityCalendar } from "@/components/calendar";
 import { ShareLinkDialog } from "@/components/calendar/components/share-link-dialog";
 import { RefreshButton } from "@/components/ui/refresh-button";
@@ -43,40 +41,20 @@ export default async function AvailabilityPage() {
 
   const availability = user?.availability ?? [];
 
-  // Fetch attendee statuses for bookings with Google events
-  // This also deletes any bookings whose Google Calendar events are cancelled/deleted
-  const bookingsList = bookings ?? [];
-  const attendeeStatuses = await getBookingAttendeeStatuses(
-    bookingsList
-      .filter((b) => b.googleEventId)
-      .map((b) => ({
-        id: b._id,
-        googleEventId: b.googleEventId,
-        guestEmail: b.guestEmail,
-      })),
-  );
+  // Process bookings with Google Calendar statuses
+  const { activeBookings } = await processBookingsWithStatuses(bookings ?? []);
 
-  // Transform bookings to BookedBlock format with guest status from Google Calendar
-  // Filter out cancelled bookings (Google Calendar is source of truth)
-  const bookedBlocks: BookedBlock[] = bookingsList
-    .filter((booking) => {
-      // Keep bookings without Google events or those not cancelled in Google
-      const statuses = attendeeStatuses[booking._id];
-      return !booking.googleEventId || !statuses?.isCancelled;
-    })
-    .map((booking) => {
-      const statuses = attendeeStatuses[booking._id];
-      return {
-        id: booking._id,
-        start: new Date(booking.startTime),
-        end: new Date(booking.endTime),
-        guestName: booking.guestName,
-        guestEmail: booking.guestEmail,
-        googleEventId: booking.googleEventId ?? undefined,
-        meetLink: booking.meetLink ?? undefined,
-        attendeeStatus: statuses?.guestStatus,
-      };
-    });
+  // Transform to BookedBlock format
+  const bookedBlocks: BookedBlock[] = activeBookings.map((booking) => ({
+    id: booking._id,
+    start: new Date(booking.startTime),
+    end: new Date(booking.endTime),
+    guestName: booking.guestName,
+    guestEmail: booking.guestEmail,
+    googleEventId: booking.googleEventId ?? undefined,
+    meetLink: booking.meetLink ?? undefined,
+    attendeeStatus: booking.guestStatus,
+  }));
 
   // Transform Sanity data to TimeBlock format
   // We show the FULL availability as stored in Sanity (bookings are displayed separately as green blocks)

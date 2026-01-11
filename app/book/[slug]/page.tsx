@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Clock } from "lucide-react";
+import { HostHeader } from "@/components/booking/host-header";
 
 interface BookingPageProps {
   params: Promise<{ slug: string }>;
@@ -53,17 +54,10 @@ export default async function BookingPage({ params }: BookingPageProps) {
     return (
       <main className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
         <div className="container mx-auto px-4 py-12 max-w-4xl">
-          <div className="text-center">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-purple-600 text-2xl font-bold text-white mb-4">
-              {host.name?.charAt(0)?.toUpperCase() || "?"}
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-              {host.name}
-            </h1>
-            <p className="mt-4 text-slate-600 dark:text-slate-400">
-              No meeting types available at this time.
-            </p>
-          </div>
+          <HostHeader
+            hostName={host.name}
+            subtitle="No meeting types available at this time."
+          />
         </div>
       </main>
     );
@@ -73,18 +67,10 @@ export default async function BookingPage({ params }: BookingPageProps) {
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="container mx-auto px-4 py-12 max-w-2xl">
-        {/* Host Info Header */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-purple-600 text-2xl font-bold text-white mb-4">
-            {host.name?.charAt(0)?.toUpperCase() || "?"}
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Book a meeting with {host.name}
-          </h1>
-          <p className="mt-2 text-slate-600 dark:text-slate-400">
-            Select a meeting type to get started
-          </p>
-        </div>
+        <HostHeader
+          hostName={`Book a meeting with ${host.name}`}
+          subtitle="Select a meeting type to get started"
+        />
 
         {/* Meeting Type Cards */}
         <div className="space-y-4">

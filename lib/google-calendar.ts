@@ -116,6 +116,63 @@ async function updateAccountTokens(
   }
 }
 
+// ============================================================================
+// Shared Google Calendar Functions
+// ============================================================================
+
+/**
+ * Represents a single event from Google Calendar.
+ * Named to distinguish from UI CalendarEvent in components/calendar/types.ts
+ */
+export type GoogleCalendarEvent = {
+  start: Date;
+  end: Date;
+  title: string;
+  accountEmail: string;
+};
+
+/**
+ * Fetch calendar events from connected accounts.
+ * This is the core function used by both authenticated and public busy time fetchers.
+ */
+export async function fetchCalendarEvents(
+  accounts: ConnectedAccountWithTokens[],
+  startDate: Date,
+  endDate: Date
+): Promise<GoogleCalendarEvent[]> {
+  const events: GoogleCalendarEvent[] = [];
+
+  for (const account of accounts) {
+    if (!account.accessToken || !account.refreshToken) continue;
+
+    try {
+      const calendar = await getCalendarClient(account);
+      const { data } = await calendar.events.list({
+        calendarId: "primary",
+        timeMin: startDate.toISOString(),
+        timeMax: endDate.toISOString(),
+        singleEvents: true,
+        orderBy: "startTime",
+      });
+
+      for (const event of data.items ?? []) {
+        // Skip all-day events (they have date instead of dateTime)
+        if (!event.start?.dateTime || !event.end?.dateTime) continue;
+        events.push({
+          start: new Date(event.start.dateTime),
+          end: new Date(event.end.dateTime),
+          title: event.summary ?? "Busy",
+          accountEmail: account.email,
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to fetch events for ${account.email}:`, error);
+    }
+  }
+
+  return events;
+}
+
 // Revoke Google OAuth token
 export async function revokeGoogleToken(accessToken: string) {
   try {

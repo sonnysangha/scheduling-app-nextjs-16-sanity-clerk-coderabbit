@@ -11,6 +11,7 @@ import { MEETING_TYPE_BY_SLUGS_QUERY } from "@/sanity/queries/meetingTypes";
 import {
   getCalendarClient,
   getEventAttendeeStatus,
+  fetchCalendarEvents,
 } from "@/lib/google-calendar";
 import { getHostBookingQuotaStatus } from "@/lib/features";
 import {
@@ -124,7 +125,11 @@ export async function getAvailableSlots(
   );
 
   // 5. Get Google Calendar busy times
-  const busyTimes = await getGoogleBusyTimes(host.connectedAccounts, dayStart, dayEnd);
+  const busyTimes = await getGoogleBusyTimes(
+    host.connectedAccounts,
+    dayStart,
+    dayEnd
+  );
 
   // 6. Generate time slots from availability
   const allSlots: TimeSlot[] = [];
@@ -198,7 +203,11 @@ export async function getAvailableDates(
   // 3. Get Google Calendar busy times (if available)
   let busyTimes: Array<{ start: Date; end: Date }> = [];
   try {
-    busyTimes = await getGoogleBusyTimes(host.connectedAccounts, startDate, endDate);
+    busyTimes = await getGoogleBusyTimes(
+      host.connectedAccounts,
+      startDate,
+      endDate
+    );
   } catch {
     // Continue without busy times if fetch fails
   }
@@ -348,34 +357,16 @@ export async function getGoogleBusyTimes(
   startDate: Date,
   endDate: Date
 ): Promise<Array<{ start: Date; end: Date }>> {
-  const busyTimes: Array<{ start: Date; end: Date }> = [];
+  const events = await fetchCalendarEvents(
+    connectedAccounts ?? [],
+    startDate,
+    endDate
+  );
 
-  for (const account of connectedAccounts ?? []) {
-    if (!account.accessToken || !account.refreshToken) continue;
-
-    try {
-      const calendar = await getCalendarClient(account);
-      const { data } = await calendar.events.list({
-        calendarId: "primary",
-        timeMin: startDate.toISOString(),
-        timeMax: endDate.toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-      });
-
-      for (const event of data.items ?? []) {
-        if (!event.start?.dateTime || !event.end?.dateTime) continue;
-        busyTimes.push({
-          start: parseISO(event.start.dateTime),
-          end: parseISO(event.end.dateTime),
-        });
-      }
-    } catch (error) {
-      console.error(`Failed to fetch busy times for ${account.email}:`, error);
-    }
-  }
-
-  return busyTimes;
+  return events.map((event) => ({
+    start: event.start,
+    end: event.end,
+  }));
 }
 
 /**

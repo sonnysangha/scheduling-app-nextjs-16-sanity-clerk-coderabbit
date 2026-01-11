@@ -82,7 +82,7 @@ export function AccountManager({
         {isAtLimit ? (
           <Button asChild>
             <Link href="/pricing">
-              Upgrade
+              Unlock more
               <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </Button>

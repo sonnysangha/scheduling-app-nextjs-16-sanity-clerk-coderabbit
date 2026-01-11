@@ -14,13 +14,9 @@ export interface BusyBlock {
   accountEmail: string;
 }
 
-// Attendee response status from Google Calendar
-export type AttendeeStatus =
-  | "accepted"
-  | "declined"
-  | "tentative"
-  | "needsAction"
-  | "unknown";
+// Re-export AttendeeStatus from google-calendar to avoid duplication
+import type { AttendeeStatus } from "@/lib/google-calendar";
+export type { AttendeeStatus };
 
 // A booked meeting block (read-only, from Sanity bookings)
 export interface BookedBlock {

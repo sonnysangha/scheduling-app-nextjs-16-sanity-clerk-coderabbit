@@ -12,6 +12,7 @@ import {
   getCalendarClient,
   revokeGoogleToken,
   getEventAttendeeStatuses,
+  fetchCalendarEvents,
   type AttendeeStatus,
 } from "@/lib/google-calendar";
 
@@ -56,47 +57,18 @@ export async function getGoogleBusyTimes(
     return [];
   }
 
-  const busySlots: BusySlot[] = [];
+  const events = await fetchCalendarEvents(
+    user.connectedAccounts,
+    startDate,
+    endDate
+  );
 
-  for (const account of user.connectedAccounts) {
-    // Skip accounts without valid tokens
-    if (!account.accessToken || !account.refreshToken) {
-      continue;
-    }
-
-    try {
-      const calendar = await getCalendarClient(account);
-
-      const { data } = await calendar.events.list({
-        calendarId: "primary",
-        timeMin: startDate.toISOString(),
-        timeMax: endDate.toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-      });
-
-      const events = data.items ?? [];
-
-      for (const event of events) {
-        // Skip all-day events (they have date instead of dateTime)
-        if (!event.start?.dateTime || !event.end?.dateTime) {
-          continue;
-        }
-
-        busySlots.push({
-          start: event.start.dateTime,
-          end: event.end.dateTime,
-          accountEmail: account.email,
-          title: event.summary ?? "Busy",
-        });
-      }
-    } catch (error) {
-      console.error(`Failed to fetch busy times for ${account.email}:`, error);
-      // Continue with other accounts
-    }
-  }
-
-  return busySlots;
+  return events.map((event) => ({
+    start: event.start.toISOString(),
+    end: event.end.toISOString(),
+    accountEmail: event.accountEmail,
+    title: event.title,
+  }));
 }
 
 /**
@@ -301,7 +273,8 @@ export async function getBookingAttendeeStatuses(
         );
 
         // Event is cancelled if deleted OR guest declined (no meeting will happen)
-        const isCancelled = hostStatus === "declined" || guestStatus === "declined";
+        const isCancelled =
+          hostStatus === "declined" || guestStatus === "declined";
         statuses[booking.id] = { guestStatus, isCancelled };
 
         // Lazy delete: If cancelled, clean up Google Calendar event and Sanity booking
@@ -379,7 +352,8 @@ export async function getActivebookingIds(
           booking.guestEmail
         );
 
-        const isCancelled = hostStatus === "declined" || guestStatus === "declined";
+        const isCancelled =
+          hostStatus === "declined" || guestStatus === "declined";
 
         // Lazy delete: If cancelled, clean up Google Calendar event and Sanity booking
         if (isCancelled) {
