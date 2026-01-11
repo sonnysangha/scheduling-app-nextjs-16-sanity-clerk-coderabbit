@@ -7,7 +7,7 @@ import {
   type DocumentHandle,
 } from "@sanity/sdk-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { TrendingUpIcon, TrendingDownIcon, MinusIcon } from "lucide-react";
+import { TrendingUpIcon, TrendingDownIcon, MinusIcon, CalendarCheckIcon } from "lucide-react";
 
 interface BookingProjection {
   startTime: string | null;
@@ -92,34 +92,47 @@ export function BookingTrendCard() {
   const diff = thisWeekCount - lastWeekCount;
   const TrendIcon =
     diff > 0 ? TrendingUpIcon : diff < 0 ? TrendingDownIcon : MinusIcon;
-  const trendColor =
-    diff > 0
-      ? "text-green-600"
-      : diff < 0
-        ? "text-red-600"
-        : "text-muted-foreground";
+  const isPositive = diff > 0;
+  const isNegative = diff < 0;
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          Bookings This Week
-        </CardTitle>
+    <Card className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-500 to-orange-500 border-0 shadow-lg shadow-amber-500/25">
+      {/* Decorative elements */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4" />
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+      
+      <CardHeader className="pb-2 flex flex-row items-start justify-between space-y-0 relative">
+        <div>
+          <CardTitle className="text-sm font-medium text-white/80">
+            Bookings This Week
+          </CardTitle>
+        </div>
+        <div className="flex size-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+          <CalendarCheckIcon className="size-6 text-white" />
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-baseline gap-2">
-          <p className="text-3xl font-bold">{thisWeekCount}</p>
-          <div className={`flex items-center gap-1 text-sm ${trendColor}`}>
-            <TrendIcon className="size-4" />
-            <span>
-              {diff > 0 ? "+" : ""}
-              {diff}
-            </span>
+      <CardContent className="relative">
+        <div className="flex items-end gap-4">
+          <p className="text-6xl font-bold tracking-tight text-white">{thisWeekCount}</p>
+          <div className="flex flex-col pb-2">
+            <div className={`flex items-center gap-1 text-sm font-medium ${
+              isPositive ? "text-emerald-200" : isNegative ? "text-red-200" : "text-white/70"
+            }`}>
+              <div className={`flex items-center justify-center size-5 rounded-full ${
+                isPositive ? "bg-emerald-400/30" : isNegative ? "bg-red-400/30" : "bg-white/20"
+              }`}>
+                <TrendIcon className="size-3" />
+              </div>
+              <span>
+                {diff > 0 ? "+" : ""}
+                {diff}
+              </span>
+            </div>
+            <p className="text-xs text-white/60 mt-1">
+              vs {lastWeekCount} last week
+            </p>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          vs {lastWeekCount} last week
-        </p>
       </CardContent>
       {bookings?.map((booking) => (
         <Suspense key={booking.documentId} fallback={null}>

@@ -4,11 +4,11 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <Providers>
-      <div className="flex flex-col min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <div className="flex flex-col min-h-screen bg-gradient-to-br from-amber-50/50 via-orange-50/30 to-white">
         <AdminHeader />
-        <div className="flex flex-1">
+        <main className="flex-1">
           {children}
-        </div>
+        </main>
       </div>
     </Providers>
   );

@@ -8,23 +8,24 @@ import { Spinner } from "@/components/ui/spinner"
 function LoadingFallback() {
   return (
     <div className="flex items-center justify-center p-8">
-      <Spinner className="size-6" />
+      <Spinner className="size-6 text-amber-500" />
     </div>
   )
 }
 
 export default function AdminDashboard() {
   return (
-    <div className="flex-1 p-4 md:p-6">
-      <h1 className="text-2xl font-semibold mb-6">Admin Dashboard</h1>
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="flex-1 min-w-0">
-          <Suspense fallback={<LoadingFallback />}>
-            <InsightsSection />
-          </Suspense>
-        </div>
-
-        <div className="w-full lg:w-96 shrink-0">
+    <div className="p-4 md:p-6 lg:p-8">
+      {/* Bento Grid Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 auto-rows-min">
+        {/* Featured Card - Booking Trend (spans 2 cols) */}
+        {/* Stats Cards */}
+        {/* Feedback Sidebar (spans 2 cols, 3 rows on desktop) */}
+        <Suspense fallback={<LoadingFallback />}>
+          <InsightsSection />
+        </Suspense>
+        
+        <div className="md:col-span-2 lg:col-span-2 lg:row-span-3 lg:row-start-1 lg:col-start-3">
           <Suspense fallback={<LoadingFallback />}>
             <FeedbackSection />
           </Suspense>
